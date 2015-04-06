@@ -1,0 +1,87 @@
+{% extends "refts_viewer/base.html" %}
+{% load tethys_gizmos %}
+
+
+{% block app_content %}
+  <h1>Post Request Demo</h1>
+  <h2></h2>
+  <form method="post" action="{% url 'raster_viewer:home' %}">
+      {% csrf_token %}
+      <input type="radio" name="branch" value="alpha" checked>alpha</input>
+      <input type="radio" name="branch" value="dev">dev</input>
+      {% gizmo text_input text_input_options_res_id %}
+      {% gizmo text_input text_input_options_filename %}
+
+      <input type="submit" name="name-form-submit" class="btn btn-default" value="Post Request"/>
+
+  </form>
+<button type="button" id="btnGet">GET request URL</button>
+<button type="button" id="btnRest">REST style URL</button>
+<h4><div id='div_url'>
+    </div></h4>
+
+
+{% endblock %}
+
+{% block app_actions %}
+  <a href="" class="btn btn-default">Next</a>
+  <a href="" class="btn btn-default">Back</a>
+{% endblock %}
+
+
+
+{% block scripts %}
+  {{ block.super }}
+
+  <script type="text/javascript">
+      var _host=window.location.host
+      var _url="{% url 'raster_viewer:home' %}";
+
+      $(function() {
+        $(document).ready(function () {
+        });
+
+        //http://127.0.0.1:8000/apps/tethys-hstools/branch/dev/res/72b1d67d415b4d949293b1e46d02367d/fn/referencetimeseries-2_23_2015-wml_2_0.wml/
+        $('#btnRest').click(function(){
+            url=_url;
+            cur_host=_host;
+            $('#div_url').empty();
+            url=url.concat("br/");
+            url=url.concat($("input[name='branch']:checked").val());
+            url=url.concat("/res/");
+            url=url.concat(res_id.value);
+            url=url.concat("/fn/");
+            url=url.concat(filename.value);
+            url=url.concat("/");
+            //$('#div_url').append(cur_host.concat(url));
+            var full_url="http://".concat(cur_host.concat(url))
+            var myNewElem=$("<a/>", {html:full_url,
+                href: full_url
+            });
+            myNewElem.appendTo('#div_url');
+        });
+
+        //http://127.0.0.1:8000/apps/tethys-hstools/?branch=alpha&filename=referencetimeseries-2_23_2015-wml_2_0.wml&res_id=72b1d67d415b4d949293b1e46d02367d
+        $('#btnGet').click(function(){
+            url=_url;
+            cur_host=_host;
+            $('#div_url').empty();
+            url=url.concat("?branch=");
+            url=url.concat($("input[name='branch']:checked").val());
+            url=url.concat("&res_id=");
+            url=url.concat(res_id.value);
+            url=url.concat("&filename=");
+            url=url.concat(filename.value);
+            url=url.concat("/");
+            //$('#div_url').append(cur_host.concat(url))
+            var full_url="http://".concat(cur_host.concat(url))
+            var myNewElem=$("<a/>", {html:full_url,
+                href: full_url
+            });
+            myNewElem.appendTo('#div_url');
+        });
+    });
+
+
+</script>
+{% endblock %}
