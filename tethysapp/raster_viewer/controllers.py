@@ -73,9 +73,14 @@ def home(request):
     current_site=get_current_site(request);
 
     domain_with_port = current_site.domain
+    print "original domain: " + domain_with_port
     idx_cut = domain_with_port.find(':')
-    domain_name = domain_with_port[:idx_cut]
+    if idx_cut != -1:
+        domain_name = domain_with_port[:idx_cut]
+    else:
+        domain_name = domain_with_port
     print "domain: " + domain_name
+
     geosvr_url_base = 'http://' + domain_name + ":8181"
     print "geoserver domain: " + geosvr_url_base
     
