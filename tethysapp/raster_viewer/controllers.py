@@ -11,6 +11,8 @@ except ImportError:
 import tempfile
 import shutil
 import os
+from django.contrib.sites.shortcuts import get_current_site
+
 
 #Base_Url_HydroShare REST API
 url_base='http://{0}.hydroshare.org/hsapi/resource/{1}/files/{2}'
@@ -68,6 +70,15 @@ def home(request):
     # make a temp dir
     temp_dir = tempfile.mkdtemp()
 
+    current_site=get_current_site(request);
+
+    domain_with_port = current_site.domain
+    idx_cut = domain_with_port.find(':')
+    domain_name = domain_with_port[:idx_cut]
+    print "domain: " + domain_name
+    geosvr_url_base = 'http://' + domain_name + ":8181"
+    print "geoserver domain: " + geosvr_url_base
+    
     print "temp folder created at " + temp_dir
     try:
         if request.method == 'POST' and 'res_id' in request.POST and 'filename' in request.POST:
