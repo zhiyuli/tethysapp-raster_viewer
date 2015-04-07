@@ -15,7 +15,7 @@ import tempfile
 import shutil
 import os
 from django.contrib.sites.shortcuts import get_current_site
-
+import sys
 
 def get_persistent_store_engine(persistent_store_name):
     """
@@ -52,7 +52,7 @@ def zipInMem(content_fn, content_obj):
         zip_crc = str(zip_info.CRC)
         print "CRC: " + zip_crc
         zip_helper.close()
-
+        print ("zip size 1: " + str(sys.getsizeof(in_memory_zip)))
         return {'zipped_obj': in_memory_zip, 'crc': zip_crc}
 
     except:
@@ -62,9 +62,12 @@ def zipInMem(content_fn, content_obj):
 
 def zipSaveAs(content_fn, content_obj, save_path, zip_fn):
     try:
-
+        print "tif name: " + content_fn
+        print "save path:  " + save_path
+        print "zip name: " + zip_fn
         rslt_dic = zipInMem(content_fn, content_obj)
         in_memory_zip = rslt_dic['zipped_obj']
+        print ("zip size 2: " + str(sys.getsizeof(in_memory_zip)))
         zip_crc = rslt_dic['crc']
         zip_filename = zip_fn
         zip_file_full_path = save_path+'/'+zip_filename

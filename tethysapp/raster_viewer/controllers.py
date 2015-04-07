@@ -109,8 +109,7 @@ def home(request):
             filename = request.GET['filename']
             res_id = request.GET['res_id']
             branch= request.GET['branch']
-
-        if url_wml is None:
+        else:
             res_id = "6e3ffe34505e4510990e48c25ce0609b"
             branch = "alpha"
             filename = 'logan.tif'
@@ -140,11 +139,11 @@ def home(request):
         return render(request, 'raster_viewer/home.html', context)
     except:
         raise Http404("Cannot locate this raster file!")
-    finally:
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-            print temp_dir + " deleted"
-            temp_dir=None
+    #finally:
+        #if os.path.exists(temp_dir):
+        #    shutil.rmtree(temp_dir)
+        #    print temp_dir + " deleted"
+        #    temp_dir=None
 
 
 def request_demo(request):
