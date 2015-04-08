@@ -110,6 +110,7 @@ def home(request):
             res_id = request.GET['res_id']
             branch= request.GET['branch']
         else:
+            return request_demo(request)
             res_id = "6e3ffe34505e4510990e48c25ce0609b"
             branch = "alpha"
             filename = 'logan.tif'
