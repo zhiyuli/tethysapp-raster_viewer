@@ -1,9 +1,17 @@
 {% extends "raster_viewer/base.html" %}
 {% load tethys_gizmos %}
 
+{% block app_navigation_items %}
+
+  <li>
+    <a href="{% url 'raster_viewer:request_demo' %}">Request Demo</a>
+  </li>
+
+{% endblock %}
+
 {% block app_content %}
-  <h1>Welcome!</h1>
-  <p>Congratulations on creating a new Tethys app!</p>
+
+<h3>{{filename}}</h3>
 
   {% gizmo map_view map_view_options %}
 

@@ -12,27 +12,52 @@ import tempfile
 import shutil
 import os
 from django.contrib.sites.shortcuts import get_current_site
-
+from utilities import *
 
 #Base_Url_HydroShare REST API
 url_base='http://{0}.hydroshare.org/hsapi/resource/{1}/files/{2}'
 geosvr_url_base='http://127.0.0.1:8181'
+
 ##Call in Rest style
-def restcall(request,branch,res_id,filename):
+def restcall(request, branch, res_id, filename):
+    # make a temp dir
+    temp_dir = tempfile.mkdtemp()
+    print "temp folder created at " + temp_dir
+
     try:
         print "restcall", branch, res_id, filename
         url_wml = url_base.format(branch, res_id, filename)
+        print "HS_REST_API: " + url_wml
 
         response = urllib2.urlopen(url_wml)
+        print "downloading " + url_wml
+        tif_obj = response.read()
+        print "download complete"
 
-        html = response.read()
+        rslt_dic= zipSaveAs(filename, tif_obj, temp_dir, "zip_file.zip")
+        zip_file_full_path = rslt_dic['zip_file_full_path']
+        zip_crc = rslt_dic['crc']
 
-        #timeseries_plot = chartPara(html, filename)
-        timeseries_plot = {}
+        geosvr_url_base = getGeoSvrUrlBase(request)
+        rslt = False
+        rslt = addZippedTif2Geoserver(geosvr_url_base, 'admin', 'geoserver', res_id, zip_crc, zip_file_full_path, url_wml)
 
-        context = {"timeseries_plot": timeseries_plot}
+        if(rslt):
+            map_view_options = getMapParas(geosvr_url_base, res_id, filename[:-4])
+            context = {"map_view_options": map_view_options, "filename": filename}
+        else:
+            context = {}
+
+        context = {"map_view_options": map_view_options, "filename": filename}
+
     except:
+        print ("REST call error")
         raise Http404("Cannot locate this resource file")
+    finally:
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+            print temp_dir + " deleted"
+            temp_dir=None
 
     return render(request, 'raster_viewer/home.html', context)
 
@@ -63,28 +88,15 @@ def restcall(request,branch,res_id,filename):
 # 2)Store name 'store' should be unique in one workspace. Ex. same store names with different zipfile or geotif cannot cannot be used for creating new layer resource
 def home(request):
 
-    filename= None
+    filename = None
     res_id = None
     url_wml = None
     branch = None
+
     # make a temp dir
     temp_dir = tempfile.mkdtemp()
-
-    current_site=get_current_site(request);
-
-    domain_with_port = current_site.domain
-    print "original domain: " + domain_with_port
-    idx_cut = domain_with_port.find(':')
-    if idx_cut != -1:
-        domain_name = domain_with_port[:idx_cut]
-    else:
-        domain_name = domain_with_port
-    print "domain: " + domain_name
-
-    geosvr_url_base = 'http://' + domain_name + ":8181"
-    print "geoserver domain: " + geosvr_url_base
-    
     print "temp folder created at " + temp_dir
+
     try:
         if request.method == 'POST' and 'res_id' in request.POST and 'filename' in request.POST:
            #print request.POST
@@ -97,138 +109,63 @@ def home(request):
             filename = request.GET['filename']
             res_id = request.GET['res_id']
             branch= request.GET['branch']
-
-
-        if url_wml is None:
+        else:
+            return request_demo(request)
             res_id = "6e3ffe34505e4510990e48c25ce0609b"
             branch = "alpha"
             filename = 'logan.tif'
 
         url_wml = url_base.format(branch,res_id,filename)
-
         print "HS_REST_API: " + url_wml
 
         response = urllib2.urlopen(url_wml)
-
         print "downloading " + url_wml
         tif_obj = response.read()
         print "download complete"
 
-        #init a mem space
-        in_memory_zip = StringIO()
-        # Create a Zip Helper Obj initialed with existing mem space
-        zip_helper = zipfile.ZipFile(in_memory_zip, "a", zipfile.ZIP_DEFLATED, False)
-        # zip content file name
-        zip_content_fn = filename
-        # path to the file will be zipped
-        zip_content_full_path = tif_obj
-        # zip helper zips local file into mem space "in_memory_zip"
-        zip_helper.writestr(zip_content_fn, zip_content_full_path)
-        zip_helper.debug = 3
+        rslt_dic= zipSaveAs(filename, tif_obj, temp_dir, "zip_file.zip")
+        zip_file_full_path = rslt_dic['zip_file_full_path']
+        zip_crc = rslt_dic['crc']
 
-        # Mark the files as having been created on Windows so that
-        # Unix permissions are not inferred as 0000
-        for zfile in zip_helper.filelist:
-            zfile.create_system = 0
-        zip_info = zip_helper.getinfo(zip_content_fn)
-        zip_crc = str(zip_info.CRC)
-        print "CRC: " + zip_crc
-        zip_helper.close()
+        geosvr_url_base = getGeoSvrUrlBase(request)
+        rslt = False
+        rslt = addZippedTif2Geoserver(geosvr_url_base, 'admin', 'geoserver', res_id, zip_crc, zip_file_full_path, url_wml)
 
-        zip_filename = "zip_file.zip"
-        zip_file_full_path = temp_dir+'/'+zip_filename
-        f = file(zip_file_full_path, "w")
-        #Writes the mem space 'in_memory_zip' to a file.
-        f.write(in_memory_zip.getvalue())
-        f.close()
-        print ("zip file saved at : " + zip_file_full_path)
-
-        geosvr_url_full = geosvr_url_base+"/geoserver/rest/"
-
-        print "Connect to Geoserver"
-        spatial_dataset_engine = GeoServerSpatialDatasetEngine(endpoint=geosvr_url_full, username='admin', password='geoserver')
-        print "Connected"
-
-        ws_name = res_id
-        response = None
-        result = spatial_dataset_engine.create_workspace(workspace_id=ws_name, uri=url_wml)
-        if result['success']:
-            print "Create workspace " + res_id + " successfully"
+        if(rslt):
+            map_view_options = getMapParas(geosvr_url_base, res_id, filename[:-4])
+            context = {"map_view_options": map_view_options, "filename": filename}
         else:
-            print "Create workspace " + res_id + " failed"
-        print result
+            context = {}
 
-        store_name = zip_crc
-        store_id = ws_name+":"+store_name
-        coverage_file=zip_file_full_path
-        result = None
-        result = spatial_dataset_engine.create_coverage_resource(store_id=store_id, coverage_file=coverage_file, coverage_type='geotiff')
-        if result['success']:
-            print "Create store " + store_name + " successfully"
-        else:
-            print "Create store " + store_name + " failed"
-        print result
-
-        spatial_dataset_engine.list_layers(debug=True)
-
-
-
-        geosvr_ulr_wms = geosvr_url_base+"/geoserver/wms/"
-        layer = res_id + ":" + filename[:-4]
-        print geosvr_ulr_wms
-        print layer
-        map_view_options = {'height': '400px',
-                    'width': '100%',
-                    'controls': ['ZoomSlider',
-                                 'Rotate',
-                                 'FullScreen',
-                                 'ScaleLine',
-                                 {'ZoomToExtent': {'projection': 'EPSG:4326',
-                                                   'extent': [-135, 22, -55, 54]
-                                                  }},
-                                 {'MousePosition': {'projection': 'EPSG:4326'}},
-                    ],
-                    'layers': [{'TiledWMS': {'url': geosvr_ulr_wms,
-                                        'params': {'LAYERS': layer, 'TILED': True},
-                                        'serverType': 'geoserver'}
-                                },
-                    ],
-                    'view': {'projection': 'EPSG:4326',
-                             'center': [-100, 40], 'zoom': 3.5,
-                             'maxZoom': 18, 'minZoom': 1},
-                    'base_map': 'OpenStreetMap'
-        }
-#'http://demo.opengeo.org:80/geoserver/maps/wms'
-#dark
-
-        # map_view_options = {'height': '400px',
-        #             'width': '100%',
-        #             'controls': ['ZoomSlider',
-        #                          'Rotate',
-        #                          'FullScreen',
-        #                          'ScaleLine',
-        #                          {'ZoomToExtent': {'projection': 'EPSG:4326',
-        #                                            'extent': [-135, 22, -55, 54]}},
-        #                          {'MousePosition': {'projection': 'EPSG:4326'}},
-        #             ],
-        #             'layers': [{'WMS': {'url': 'http://demo.opengeo.org/geoserver/wms',
-        #                                 'params': {'LAYERS': 'topp:states'},
-        #                                 'serverType': 'geoserver'}
-        #                         },
-        #             ],
-        #             'view': {'projection': 'EPSG:4326',
-        #                      'center': [-100, 40], 'zoom': 3.5,
-        #                      'maxZoom': 18, 'minZoom': 3},
-        #             'base_map': 'OpenStreetMap'
-        #}
-
-        context = {"map_view_options": map_view_options}
         return render(request, 'raster_viewer/home.html', context)
     except:
-        return render(request, 'raster_viewer/home.html', context)
         raise Http404("Cannot locate this raster file!")
-    finally:
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-            print temp_dir+ " deleted"
-            temp_dir=None
+    #finally:
+        #if os.path.exists(temp_dir):
+        #    shutil.rmtree(temp_dir)
+        #    print temp_dir + " deleted"
+        #    temp_dir=None
+
+
+def request_demo(request):
+
+    name = ''
+
+    # Define Gizmo Options
+    text_input_options_res_id = {'display_text': 'Res ID',
+                          'name': 'res_id',
+                            'initial': '6e3ffe34505e4510990e48c25ce0609b'}
+
+    text_input_options_filename = {'display_text': 'Filename',
+                          'name': 'filename',
+                          'initial': 'logan.tif'
+                          }
+
+
+    # Create template context dictionary
+    context = {'name': name,
+               'text_input_options_res_id': text_input_options_res_id,
+               'text_input_options_filename':text_input_options_filename
+               }
+
+    return render(request, 'raster_viewer/request_demo.html',context)
