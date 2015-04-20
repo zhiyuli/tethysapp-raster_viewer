@@ -52,7 +52,7 @@ def zipInMem(content_fn, content_obj):
         zip_crc = str(zip_info.CRC)
         print "CRC: " + zip_crc
         zip_helper.close()
-        print ("zip size 1: " + str(sys.getsizeof(in_memory_zip)))
+
         return {'zipped_obj': in_memory_zip, 'crc': zip_crc}
 
     except:
@@ -67,7 +67,7 @@ def zipSaveAs(content_fn, content_obj, save_path, zip_fn):
         print "zip name: " + zip_fn
         rslt_dic = zipInMem(content_fn, content_obj)
         in_memory_zip = rslt_dic['zipped_obj']
-        print ("zip size 2: " + str(sys.getsizeof(in_memory_zip)))
+
         zip_crc = rslt_dic['crc']
         zip_filename = zip_fn
         zip_file_full_path = save_path+'/'+zip_filename
@@ -86,6 +86,7 @@ def addZippedTif2Geoserver(geosvr_url_base, uname, upwd, ws_name, store_name, zi
 
         try:
             geosvr_url_full = geosvr_url_base+"/geoserver/rest/"
+            print "GeoServer REST Full URL: "+geosvr_url_full
             coverage_file = zippedTif_full_path
 
             print "Connect to Geoserver"
@@ -152,7 +153,10 @@ def getMapParas(geosvr_url_base, wsName, layerName):
         print ("getMapParas() error")
         raise Exception("getMapParas() error")
 
-def getGeoSvrUrlBase(request):
+def getGeoSvrUrlBase(request, base_url):
+
+    print "geoserver domain: " + base_url
+    return base_url
 
     current_site = get_current_site(request);
     domain_with_port = current_site.domain
