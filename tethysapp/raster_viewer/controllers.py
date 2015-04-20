@@ -15,8 +15,11 @@ from django.contrib.sites.shortcuts import get_current_site
 from utilities import *
 
 #Base_Url_HydroShare REST API
-url_base='http://{0}.hydroshare.org/hsapi/resource/{1}/files/{2}'
-geosvr_url_base='http://127.0.0.1:8181'
+#url_base='http://{0}.hydroshare.org/hsapi/resource/{1}/files/{2}'
+url_base='http://{0}.hydroshare.org/django_irods/download/?path={1}/{2}'
+
+#eg: 'http://45.55.185.67'
+geosvr_url_base='http://45.55.185.67:8080'
 
 ##Call in Rest style
 def restcall(request, branch, res_id, filename):
@@ -38,7 +41,8 @@ def restcall(request, branch, res_id, filename):
         zip_file_full_path = rslt_dic['zip_file_full_path']
         zip_crc = rslt_dic['crc']
 
-        geosvr_url_base = getGeoSvrUrlBase(request)
+        #geosvr_url_base = getGeoSvrUrlBase(request, geosvr_url_base)
+
         rslt = False
         rslt = addZippedTif2Geoserver(geosvr_url_base, 'admin', 'geoserver', res_id, zip_crc, zip_file_full_path, url_wml)
 
@@ -127,7 +131,9 @@ def home(request):
         zip_file_full_path = rslt_dic['zip_file_full_path']
         zip_crc = rslt_dic['crc']
 
-        geosvr_url_base = getGeoSvrUrlBase(request)
+        #print geosvr_url_base
+        #geosvr_url_base = getGeoSvrUrlBase(request,geosvr_url_base)
+
         rslt = False
         rslt = addZippedTif2Geoserver(geosvr_url_base, 'admin', 'geoserver', res_id, zip_crc, zip_file_full_path, url_wml)
 
@@ -140,11 +146,11 @@ def home(request):
         return render(request, 'raster_viewer/home.html', context)
     except:
         raise Http404("Cannot locate this raster file!")
-    #finally:
-        #if os.path.exists(temp_dir):
-        #    shutil.rmtree(temp_dir)
-        #    print temp_dir + " deleted"
-        #    temp_dir=None
+    finally:
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+            print temp_dir + " deleted"
+            temp_dir=None
 
 
 def request_demo(request):
