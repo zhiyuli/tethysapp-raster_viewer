@@ -1,21 +1,36 @@
 {% extends "refts_viewer/base.html" %}
 {% load tethys_gizmos %}
 
+{% block app_navigation_items %}
+
+  <li>
+    <a href="{% url 'raster_viewer:home' %}">Back to viewer</a>
+  </li>
+
+{% endblock %}
 
 {% block app_content %}
-  <h1>Request Demo</h1>
-  <h2></h2>
+  <h1>Demo & Help</h1>
+  <h4>You can use this app to visualize a <a href="http://dev.hydroshare.org">HydroShare</a> Geographic Raster resource.</h4>
+<h4>1) Go to a HydroShare service instance (e.g. dev.hydroshare.org), find/create a Geographic Raster resource.</h4>
+<h4>2) Fill the following blanks on this page with correct Resource ID and <a href="http://trac.osgeo.org/geotiff/">GeoTiff</a> filename from HydroShare resource page.</h4>
+<h4>3) Click "View". (This may take seconds to minutes depending on the specific resource size)</h4>
+
+<h4>Next release will register this viewer into HydroShare system as a HydroShare App.
+Then you can launch this viewer from HydroShare resource page by a simple click.</h4>
+<h4>For more info, check our <a href="https://github.com/zhiyuli/tethysapp-raster_viewer">source code</a> at GitHub</h4>
+<h2></h2>
   <form method="post" action="{% url 'raster_viewer:home' %}">
       {% csrf_token %}
-      <input type="radio" name="branch" value="alpha" checked>alpha</input>
+      <input type="radio" name="branch" value="alpha">alpha</input>
       <input type="radio" name="branch" value="beta">beta</input>
-      <input type="radio" name="branch" value="dev">dev</input>
+      <input type="radio" name="branch" value="dev" checked>dev</input>
       <input type="radio" name="branch" value="playground">playground</input>
       <input type="radio" name="branch" value="sandbox">sandbox</input>
       {% gizmo text_input text_input_options_res_id %}
       {% gizmo text_input text_input_options_filename %}
 
-      <input type="submit" name="name-form-submit" class="btn btn-default" value="Post Request"/>
+      <input type="submit" name="name-form-submit" class="btn btn-default" value="View"/>
 
   </form>
 <button type="button" id="btnGet">GET request URL</button>
@@ -26,10 +41,7 @@
 
 {% endblock %}
 
-{% block app_actions %}
-  <a href="" class="btn btn-default">Next</a>
-  <a href="" class="btn btn-default">Back</a>
-{% endblock %}
+
 
 
 

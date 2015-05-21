@@ -20,7 +20,8 @@ url_base='http://{0}.hydroshare.org/django_irods/download/?path={1}/{2}'
 
 #eg: 'http://45.55.185.67'
 #geosvr_url_base='http://10.2.115.230:8181'
-geosvr_url_base='http://127.0.0.1:8181'
+geosvr_url_base='http://apps.hydroshare.org:8181'
+#geosvr_url_base='http://127.0.0.1:8181'
 geosvr_user='admin'
 geosvr_pw='geoserver'
 ##Call in Rest style
@@ -116,10 +117,11 @@ def home(request):
             res_id = request.GET['res_id']
             branch= request.GET['branch']
         else:
-            return request_demo(request)
-            res_id = "6e3ffe34505e4510990e48c25ce0609b"
-            branch = "alpha"
-            filename = 'logan.tif'
+            map_view_options = getMapParas(geosvr_url_base, 'sf', 'sfdem', 'sfdem',geosvr_user,geosvr_pw)
+            filename='sfdem.tif'
+            context = {"map_view_options": map_view_options, "filename": filename}
+            return render(request, 'raster_viewer/home.html', context)
+
 
         url_wml = url_base.format(branch,res_id,filename)
         print "HS_REST_API: " + url_wml
@@ -160,13 +162,13 @@ def request_demo(request):
     name = ''
 
     # Define Gizmo Options
-    text_input_options_res_id = {'display_text': 'Res ID',
+    text_input_options_res_id = {'display_text': 'Resource ID',
                           'name': 'res_id',
-                            'initial': '6e3ffe34505e4510990e48c25ce0609b'}
+                            'initial': '148461e83e2941bd950b8108d6a24029'}
 
-    text_input_options_filename = {'display_text': 'Filename',
+    text_input_options_filename = {'display_text': 'GeoTiff Filename',
                           'name': 'filename',
-                          'initial': 'logan.tif'
+                          'initial': 'c41078a1_15mb.tif'
                           }
 
 
