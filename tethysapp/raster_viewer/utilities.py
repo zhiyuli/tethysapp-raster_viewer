@@ -118,13 +118,45 @@ def addZippedTif2Geoserver(geosvr_url_base, uname, upwd, ws_name, store_name, zi
             print ("addZippedTif2Geoserver() error")
             raise Exception("addZippedTif2Geoserver() error")
 
-def getMapParas(geosvr_url_base, wsName, layerName):
+def getMapParas(geosvr_url_base, wsName, store_id, layerName,un,pw):
 
     try:
         geosvr_ulr_wms = geosvr_url_base+"/geoserver/wms/"
         layer = wsName + ":" + layerName
         print geosvr_ulr_wms
         print layer
+
+        #manually create a http query to get Rater bounding box
+        #not a good practice, consider using tethys geoserver api or gisconfig
+        import urllib2, json, base64
+        url='/geoserver/rest/workspaces/{0}/coveragestores/{1}/coverages/{2}.json'
+        url=geosvr_url_base + url.format(wsName,store_id,layerName)
+        print "Geo Auth: " + url
+
+        authKey = base64.encodestring('%s:%s' % (un, pw)).replace('\n', '')
+        request = urllib2.Request(url)
+        headers ={'Authorization': "Basic " + authKey}
+        for k in headers.keys():
+            request.add_header(k, headers[k])
+        try:
+            response = urllib2.urlopen(request, timeout=30).read()
+            j= json.loads(response)
+            bounding= j['coverage']['latLonBoundingBox']
+            extent=[bounding['minx'],bounding['maxx'],bounding['miny'],bounding['maxy']]
+            print "extent:"
+            print extent
+            #[-135, 22, -55, 54]
+            center=[(bounding['minx']+bounding['maxx'])*0.5,(bounding['miny']+bounding['maxy'])*0.5]
+            #[-100, 40]
+            print "center:"
+            print center
+
+        except urllib2.HTTPError as e:
+            print e
+            print e.header
+            print e.read()
+            raise Exception("getMapParas() Auth Error")
+
         map_view_options = {'height': '400px',
                     'width': '100%',
                     'controls': ['ZoomSlider',
@@ -132,7 +164,7 @@ def getMapParas(geosvr_url_base, wsName, layerName):
                                  'FullScreen',
                                  'ScaleLine',
                                  {'ZoomToExtent': {'projection': 'EPSG:4326',
-                                                   'extent': [-135, 22, -55, 54]
+                                                   'extent': extent
                                                   }},
                                  {'MousePosition': {'projection': 'EPSG:4326'}},
                     ],
@@ -142,7 +174,7 @@ def getMapParas(geosvr_url_base, wsName, layerName):
                                 },
                     ],
                     'view': {'projection': 'EPSG:4326',
-                             'center': [-100, 40], 'zoom': 3.5,
+                             'center': center, 'zoom': 8,
                              'maxZoom': 18, 'minZoom': 1},
                     'base_map': 'OpenStreetMap'
         }

@@ -19,8 +19,10 @@ from utilities import *
 url_base='http://{0}.hydroshare.org/django_irods/download/?path={1}/{2}'
 
 #eg: 'http://45.55.185.67'
-geosvr_url_base='http://45.55.185.67:8080'
-
+#geosvr_url_base='http://10.2.115.230:8181'
+geosvr_url_base='http://127.0.0.1:8181'
+geosvr_user='admin'
+geosvr_pw='geoserver'
 ##Call in Rest style
 def restcall(request, branch, res_id, filename):
     # make a temp dir
@@ -44,10 +46,10 @@ def restcall(request, branch, res_id, filename):
         #geosvr_url_base = getGeoSvrUrlBase(request, geosvr_url_base)
 
         rslt = False
-        rslt = addZippedTif2Geoserver(geosvr_url_base, 'admin', 'geoserver', res_id, zip_crc, zip_file_full_path, url_wml)
+        rslt = addZippedTif2Geoserver(geosvr_url_base, geosvr_user, geosvr_pw, res_id, zip_crc, zip_file_full_path, url_wml)
 
         if(rslt):
-            map_view_options = getMapParas(geosvr_url_base, res_id, filename[:-4])
+            map_view_options = getMapParas(geosvr_url_base, res_id, zip_crc,filename[:-4],geosvr_user,geosvr_pw)
             context = {"map_view_options": map_view_options, "filename": filename}
         else:
             context = {}
@@ -135,10 +137,10 @@ def home(request):
         #geosvr_url_base = getGeoSvrUrlBase(request,geosvr_url_base)
 
         rslt = False
-        rslt = addZippedTif2Geoserver(geosvr_url_base, 'admin', 'geoserver', res_id, zip_crc, zip_file_full_path, url_wml)
+        rslt = addZippedTif2Geoserver(geosvr_url_base, geosvr_user, geosvr_pw, res_id, zip_crc, zip_file_full_path, url_wml)
 
         if(rslt):
-            map_view_options = getMapParas(geosvr_url_base, res_id, filename[:-4])
+            map_view_options = getMapParas(geosvr_url_base, res_id, zip_crc, filename[:-4],geosvr_user,geosvr_pw)
             context = {"map_view_options": map_view_options, "filename": filename}
         else:
             context = {}
