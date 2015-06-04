@@ -16,7 +16,8 @@ from utilities import *
 
 #Base_Url_HydroShare REST API
 #url_base='http://{0}.hydroshare.org/hsapi/resource/{1}/files/{2}'
-url_base='http://{0}.hydroshare.org/django_irods/download/?path={1}/{2}'
+#url_base='http://{0}.hydroshare.org/django_irods/download/?path={1}/{2}'
+url_base='http://{0}.hydroshare.org/django_irods/download/{1}/data/contents/{2}'
 
 #eg: 'http://45.55.185.67'
 #geosvr_url_base='http://10.2.115.230:8181'
@@ -164,7 +165,7 @@ def request_demo(request):
     # Define Gizmo Options
     text_input_options_res_id = {'display_text': 'Resource ID',
                           'name': 'res_id',
-                            'initial': '148461e83e2941bd950b8108d6a24029'}
+                            'initial': '720226f592bc4c50b6dbf604219015bc'}
 
     text_input_options_filename = {'display_text': 'GeoTiff Filename',
                           'name': 'filename',

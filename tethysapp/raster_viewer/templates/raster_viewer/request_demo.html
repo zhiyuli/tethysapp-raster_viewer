@@ -22,11 +22,12 @@ Then you can launch this viewer from HydroShare resource page by a simple click.
 <h2></h2>
   <form method="post" action="{% url 'raster_viewer:home' %}">
       {% csrf_token %}
-      <input type="radio" name="branch" value="alpha">alpha</input>
+      <input type="radio" name="branch" value="www" checked>www</input>
+      <input type="radio" name="branch" value="dev">dev</input>
       <input type="radio" name="branch" value="beta">beta</input>
-      <input type="radio" name="branch" value="dev" checked>dev</input>
+      <input type="radio" name="branch" value="alpha">alpha</input>
       <input type="radio" name="branch" value="playground">playground</input>
-      <input type="radio" name="branch" value="sandbox">sandbox</input>
+
       {% gizmo text_input text_input_options_res_id %}
       {% gizmo text_input text_input_options_filename %}
 
