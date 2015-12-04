@@ -21,8 +21,8 @@ from utilities import *
 hs_instance_name = "www"
 hs_hostname = "{0}.hydroshare.org".format(hs_instance_name)
 
-#geosvr_url_base='https://appsdev.hydroshare.org:8181'
-#geosvr_url_base='https://apps.hydroshare.org:8181'
+#geosvr_url_base='http://appsdev.hydroshare.org:8181'
+#geosvr_url_base='http://apps.hydroshare.org:8181'
 geosvr_url_base='http://127.0.0.1:8181'
 
 geosvr_user='admin'
