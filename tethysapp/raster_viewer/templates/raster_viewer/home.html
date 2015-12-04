@@ -1,19 +1,37 @@
 {% extends "raster_viewer/base.html" %}
 {% load tethys_gizmos %}
+{% load staticfiles %}
+
+
+{% block global_scripts %}
+  {{ block.super }}
+  <script src="{% static 'raster_viewer/vendor/openlayers/v3.11.2-dist/ol.js' %}" type="text/javascript"></script>
+{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'raster_viewer/vendor/openlayers/v3.11.2-dist/ol.css' %}" type="text/css" />
+  <style>
+    .ol-mouse-position {
+      top: 10px;
+      right: 40px;
+    }
+  </style>
+{% endblock %}
 
 {% block app_navigation_items %}
-
-  <li>
-    <a href="{% url 'raster_viewer:request_demo' %}">Demo & Help</a>
-  </li>
 
 {% endblock %}
 
 {% block app_content %}
 
-<h3>{{filename}}</h3>
+<div id="map" class="map"></div>
 
-  {% gizmo map_view map_view_options %}
 
 {% endblock %}
 
+{% block scripts %}
+{{ block.super }}
+<script src="{% static 'raster_viewer/js/map.js' %}" type="text/javascript"></script>
+
+{% endblock %}

@@ -4,70 +4,31 @@ import urllib2
 #from tethys_apps.base import TethysAppBase, SpatialDatasetService
 from tethys_dataset_services.engines import GeoServerSpatialDatasetEngine
 import zipfile
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from io import BytesIO as StringIO
+from oauthlib.oauth2 import TokenExpiredError
+from hs_restclient import HydroShare, HydroShareAuthOAuth2, HydroShareNotAuthorized
+from django.contrib.auth.decorators import login_required
+from social_auth.models import UserSocialAuth
+from django.conf import settings
+from django.http import JsonResponse
+
+
 import tempfile
 import shutil
 import os
 from django.contrib.sites.shortcuts import get_current_site
 from utilities import *
 
-#Base_Url_HydroShare REST API
-#url_base='http://{0}.hydroshare.org/hsapi/resource/{1}/files/{2}'
-#url_base='http://{0}.hydroshare.org/django_irods/download/?path={1}/{2}'
-url_base='http://{0}.hydroshare.org/django_irods/download/{1}/data/contents/{2}'
+hs_instance_name = "www"
+hs_hostname = "{0}.hydroshare.org".format(hs_instance_name)
 
-#eg: 'http://45.55.185.67'
-#geosvr_url_base='http://10.2.115.230:8181'
-geosvr_url_base='http://apps.hydroshare.org:8181'
-#geosvr_url_base='http://127.0.0.1:8181'
+#geosvr_url_base='https://appsdev.hydroshare.org:8181'
+#geosvr_url_base='https://apps.hydroshare.org:8181'
+geosvr_url_base='http://127.0.0.1:8181'
+
 geosvr_user='admin'
 geosvr_pw='geoserver'
-##Call in Rest style
-def restcall(request, branch, res_id, filename):
-    # make a temp dir
-    temp_dir = tempfile.mkdtemp()
-    print "temp folder created at " + temp_dir
 
-    try:
-        print "restcall", branch, res_id, filename
-        url_wml = url_base.format(branch, res_id, filename)
-        print "HS_REST_API: " + url_wml
-
-        response = urllib2.urlopen(url_wml)
-        print "downloading " + url_wml
-        tif_obj = response.read()
-        print "download complete"
-
-        rslt_dic= zipSaveAs(filename, tif_obj, temp_dir, "zip_file.zip")
-        zip_file_full_path = rslt_dic['zip_file_full_path']
-        zip_crc = rslt_dic['crc']
-
-        #geosvr_url_base = getGeoSvrUrlBase(request, geosvr_url_base)
-
-        rslt = False
-        rslt = addZippedTif2Geoserver(geosvr_url_base, geosvr_user, geosvr_pw, res_id, zip_crc, zip_file_full_path, url_wml)
-
-        if(rslt):
-            map_view_options = getMapParas(geosvr_url_base, res_id, zip_crc,filename[:-4],geosvr_user,geosvr_pw)
-            context = {"map_view_options": map_view_options, "filename": filename}
-        else:
-            context = {}
-
-        context = {"map_view_options": map_view_options, "filename": filename}
-
-    except:
-        print ("REST call error")
-        raise Http404("Cannot locate this resource file")
-    finally:
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-            print temp_dir + " deleted"
-            temp_dir=None
-
-    return render(request, 'raster_viewer/home.html', context)
+extract_base_path = '/tmp'
 
 #Normal Get or Post Request
 #http://dev.hydroshare.org/hsapi/resource/72b1d67d415b4d949293b1e46d02367d/files/referencetimeseries-2_23_2015-wml_2_0.wml/
@@ -94,89 +55,123 @@ def restcall(request, branch, res_id, filename):
 # Conclusion:
 # 1)Zip file name 'zipFile.zip' does not matter.But the embed tif file name (without extension) 'geotiffwill' be used for Layer Name.
 # 2)Store name 'store' should be unique in one workspace. Ex. same store names with different zipfile or geotif cannot cannot be used for creating new layer resource
+
+@login_required()
 def home(request):
 
-    filename = None
-    res_id = None
-    url_wml = None
-    branch = None
+    # import sys
+    # sys.path.append("/home/drew/pycharm-debug")
+    # import pydevd
+    # pydevd.settrace('172.17.42.1', port=21000, suspend=False)
 
-    # make a temp dir
-    temp_dir = tempfile.mkdtemp()
-    print "temp folder created at " + temp_dir
+    if request.GET:
+        res_id = request.GET["res_id"]
+        src = request.GET['src']
+        usr = request.GET['usr']
 
+        request.session['res_id'] = res_id
+        request.session['src'] = src
+        request.session['usr'] = usr
     try:
-        if request.method == 'POST' and 'res_id' in request.POST and 'filename' in request.POST:
-           #print request.POST
-           filename = request.POST['filename']
-           res_id =  request.POST['res_id']
-           branch = request.POST['branch']
+        # res_id = "b7822782896143ca8712395f6814c44b"
+        # res_id = "877bf9ed9e66468cadddb229838a9ced"
+        # res_id = "e660640a7b084794aa2d70dc77cfa67b"
+        # private res
+        # res_id = "a4a4bca8369e4c1e88a1b35b9487e731"
+        # request.session['res_id'] = res_id
 
-        elif request.method == 'GET' and 'res_id' in request.GET and 'filename' in request.GET:
-            #print request.GET
-            filename = request.GET['filename']
-            res_id = request.GET['res_id']
-            branch= request.GET['branch']
-        else:
-            map_view_options = getMapParas(geosvr_url_base, 'sf', 'sfdem', 'sfdem',geosvr_user,geosvr_pw)
-            filename='sfdem.tif'
-            context = {"map_view_options": map_view_options, "filename": filename}
-            return render(request, 'raster_viewer/home.html', context)
+        hs = getOAuthHS(request)
+        res_landing_page = "https://{0}.hydroshare.org/resource/{1}/".format(hs_instance_name, res_id)
+        resource_md = hs.getSystemMetadata(res_id)
+        resource_type = resource_md.get("resource_type", "")
+        resource_title = resource_md.get("resource_title", "")
+        hs_hostname = "{0}.hydroshare.org".format(hs_instance_name)
+        if resource_type.lower() != "rasterresource":
+            raise Http404("Not RasterResource")
 
-
-        url_wml = url_base.format(branch,res_id,filename)
-        print "HS_REST_API: " + url_wml
-
-        response = urllib2.urlopen(url_wml)
-        print "downloading " + url_wml
-        tif_obj = response.read()
-        print "download complete"
-
-        rslt_dic= zipSaveAs(filename, tif_obj, temp_dir, "zip_file.zip")
-        zip_file_full_path = rslt_dic['zip_file_full_path']
-        zip_crc = rslt_dic['crc']
-
-        #print geosvr_url_base
-        #geosvr_url_base = getGeoSvrUrlBase(request,geosvr_url_base)
-
-        rslt = False
-        rslt = addZippedTif2Geoserver(geosvr_url_base, geosvr_user, geosvr_pw, res_id, zip_crc, zip_file_full_path, url_wml)
-
-        if(rslt):
-            map_view_options = getMapParas(geosvr_url_base, res_id, zip_crc, filename[:-4],geosvr_user,geosvr_pw)
-            context = {"map_view_options": map_view_options, "filename": filename}
-        else:
-            context = {}
+        context = {}
 
         return render(request, 'raster_viewer/home.html', context)
+    except TokenExpiredError as e:
+        # TODO: redirect back to login view, giving this view as the view to return to
+        #logger.error("TokenExpiredError: TODO: redirect to login view")
+        raise Http404("Token Expired")
+    except HydroShareNotAuthorized as e:
+        raise Http404("Your have no permission on this resource")
     except:
-        raise Http404("Cannot locate this raster file!")
+        raise
+
+
+def getOAuthHS(request):
+    try:
+        client_id = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_KEY", "None")
+        client_secret = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_SECRET", "None")
+        token = request.user.social_auth.get(provider='hydroshare').extra_data['token_dict']
+        auth = HydroShareAuthOAuth2(client_id, client_secret, token=token)
+        hs = HydroShare(auth=auth, hostname=hs_hostname)
+        return hs
+    except:
+        return None
+
+
+def draw_raster(request):
+
+    res_id = request.session.get("res_id", None)
+    temp_res_extracted_dir = None
+    temp_dir = None
+    map_dict = {}
+    map_dict["success"] = False
+
+    try:
+        if res_id is not None:
+            hs = getOAuthHS(request)
+            map_dict = getMapParas(geosvr_url_base=geosvr_url_base, wsName=hs_hostname, store_id=res_id, \
+                        layerName=res_id, un=geosvr_user, pw=geosvr_pw)
+
+            if map_dict["success"] == False:
+
+                temp_dir = tempfile.mkdtemp()
+                hs.getResource(res_id, destination=extract_base_path, unzip=True)
+                temp_res_extracted_dir = extract_base_path + '/' + res_id
+                contents_folder = extract_base_path + '/' + res_id + '/' + res_id +'/data/contents/'
+                file_list = os.listdir(contents_folder)
+
+                tif_fn = file_list[0] # tif full name
+                tif_fp = contents_folder + tif_fn # tif full path
+                tif_hdl = open(tif_fp, 'rb')
+                tif_obj = tif_hdl.read()
+                rslt_dic = zipSaveAs(res_id + ".tif", tif_obj, temp_dir, "zip_file.zip")
+
+                zip_file_full_path = rslt_dic['zip_file_full_path']
+                zip_crc = rslt_dic['crc']
+
+                rslt = addZippedTif2Geoserver(geosvr_url_base=geosvr_url_base, uname=geosvr_user, upwd=geosvr_pw, ws_name=hs_hostname, \
+                                              store_name=res_id, zippedTif_full_path=zip_file_full_path, res_url=hs_hostname)
+                if(rslt):
+                    map_dict = getMapParas(geosvr_url_base=geosvr_url_base, wsName=hs_hostname, store_id=res_id, \
+                                                   layerName=res_id, un=geosvr_user, pw=geosvr_pw)
+
+            map_dict['geosvr_url_base'] = geosvr_url_base
+            map_dict['ws_name'] = hs_hostname
+            map_dict['store_name'] = res_id
+            map_dict['layer_name'] = res_id
+
+        return JsonResponse(map_dict)
+
+    except TokenExpiredError as e:
+        # TODO: redirect back to login view, giving this view as the view to return to
+        #logger.error("TokenExpiredError: TODO: redirect to login view")
+        raise Http404("Token Expired")
+    except HydroShareNotAuthorized as e:
+        raise Http404("Your have no permission on this resource")
+    except:
+        raise
     finally:
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-            print temp_dir + " deleted"
-            temp_dir=None
-
-
-def request_demo(request):
-
-    name = ''
-
-    # Define Gizmo Options
-    text_input_options_res_id = {'display_text': 'Resource ID',
-                          'name': 'res_id',
-                            'initial': '720226f592bc4c50b6dbf604219015bc'}
-
-    text_input_options_filename = {'display_text': 'GeoTiff Filename',
-                          'name': 'filename',
-                          'initial': 'c41078a1_15mb.tif'
-                          }
-
-
-    # Create template context dictionary
-    context = {'name': name,
-               'text_input_options_res_id': text_input_options_res_id,
-               'text_input_options_filename':text_input_options_filename
-               }
-
-    return render(request, 'raster_viewer/request_demo.html',context)
+        if temp_dir is not None:
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+                print temp_dir + " deleted"
+        if temp_res_extracted_dir is not None:
+            if os.path.exists(temp_res_extracted_dir):
+                shutil.rmtree(temp_res_extracted_dir)
+                print temp_res_extracted_dir + " deleted"

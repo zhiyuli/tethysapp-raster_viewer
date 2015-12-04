@@ -101,7 +101,7 @@ def addZippedTif2Geoserver(geosvr_url_base, uname, upwd, ws_name, store_name, zi
                 print "Create workspace " + ws_name + " failed"
             print result
 
-            store_id = ws_name+":"+store_name
+            store_id = ws_name + ":" + store_name
 
             result = None
             result = spatial_dataset_engine.create_coverage_resource(store_id=store_id, coverage_file=coverage_file, coverage_type='geotiff')
@@ -116,9 +116,56 @@ def addZippedTif2Geoserver(geosvr_url_base, uname, upwd, ws_name, store_name, zi
             return True
         except:
             print ("addZippedTif2Geoserver() error")
-            raise Exception("addZippedTif2Geoserver() error")
+            return False
 
-def getMapParas(geosvr_url_base, wsName, store_id, layerName,un,pw):
+def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
+
+
+    rslt = {}
+
+    geosvr_ulr_wms = geosvr_url_base+"/geoserver/wms/"
+    layer = wsName + ":" + layerName
+    print geosvr_ulr_wms
+    print layer
+
+    #manually create a http query to get Rater bounding box
+    #not a good practice, consider using tethys geoserver api or gisconfig
+    import urllib2, json, base64
+    url = '/geoserver/rest/workspaces/{0}/coveragestores/{1}/coverages/{2}.json'
+    url = geosvr_url_base + url.format(wsName, store_id, layerName)
+    print "Geo Auth: " + url
+
+    authKey = base64.encodestring('%s:%s' % (un, pw)).replace('\n', '')
+    request = urllib2.Request(url)
+    headers = {'Authorization': "Basic " + authKey}
+    for k in headers.keys():
+        request.add_header(k, headers[k])
+
+    try:
+        response = urllib2.urlopen(request, timeout=30).read()
+        if "no such" in str(response).lower():
+            rslt["sucess"] = False
+            return rslt
+
+        j = json.loads(response)
+        bounding= j['coverage']['latLonBoundingBox']
+        extent=[bounding['minx'], bounding['maxx'], bounding['miny'], bounding['maxy']]
+        print "extent:"
+        print extent
+
+        rslt['success'] = True
+        rslt['minx'] = bounding['minx']
+        rslt['miny'] = bounding['miny']
+        rslt['maxx'] = bounding['maxx']
+        rslt['maxy'] = bounding['maxy']
+        return rslt
+
+    except urllib2.HTTPError as e:
+        print e
+        return {"success": False}
+
+
+def getMapParas2(geosvr_url_base, wsName, store_id, layerName, un, pw):
 
     try:
         geosvr_ulr_wms = geosvr_url_base+"/geoserver/wms/"
@@ -129,24 +176,24 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName,un,pw):
         #manually create a http query to get Rater bounding box
         #not a good practice, consider using tethys geoserver api or gisconfig
         import urllib2, json, base64
-        url='/geoserver/rest/workspaces/{0}/coveragestores/{1}/coverages/{2}.json'
-        url=geosvr_url_base + url.format(wsName,store_id,layerName)
+        url = '/geoserver/rest/workspaces/{0}/coveragestores/{1}/coverages/{2}.json'
+        url = geosvr_url_base + url.format(wsName, store_id, layerName)
         print "Geo Auth: " + url
 
         authKey = base64.encodestring('%s:%s' % (un, pw)).replace('\n', '')
         request = urllib2.Request(url)
-        headers ={'Authorization': "Basic " + authKey}
+        headers = {'Authorization': "Basic " + authKey}
         for k in headers.keys():
             request.add_header(k, headers[k])
         try:
             response = urllib2.urlopen(request, timeout=30).read()
-            j= json.loads(response)
+            j = json.loads(response)
             bounding= j['coverage']['latLonBoundingBox']
-            extent=[bounding['minx'],bounding['maxx'],bounding['miny'],bounding['maxy']]
+            extent=[bounding['minx'], bounding['maxx'], bounding['miny'], bounding['maxy']]
             print "extent:"
             print extent
             #[-135, 22, -55, 54]
-            center=[(bounding['minx']+bounding['maxx'])*0.5,(bounding['miny']+bounding['maxy'])*0.5]
+            center = [(bounding['minx']+bounding['maxx'])*0.5, (bounding['miny']+bounding['maxy'])*0.5]
             #[-100, 40]
             print "center:"
             print center
