@@ -267,8 +267,6 @@ def draw_raster(request):
         map_dict['popup_content'] = popup_content
         # raise
     finally:
-        return JsonResponse(map_dict)
-
         if temp_dir is not None:
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
@@ -277,3 +275,4 @@ def draw_raster(request):
             if os.path.exists(temp_res_extracted_dir):
                 shutil.rmtree(temp_res_extracted_dir)
                 print temp_res_extracted_dir + " deleted"
+        return JsonResponse(map_dict)
