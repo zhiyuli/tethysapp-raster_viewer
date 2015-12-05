@@ -19,14 +19,66 @@
   </style>
 {% endblock %}
 
+
 {% block app_navigation_items %}
+    <div id="layer_control_div">
+    </div>
+    <div id="data_loading_div">
+    </div>
 
 {% endblock %}
 
-{% block app_content %}
 
+{% block app_content_wrapper_override %}
+<!-- Modal  -->
+<div class="modal fade" id="welcome-popup" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">
+                    {% if popup_title %}
+                        {{popup_title}}
+                    {% endif %}
+                    <!--Welcome to the HydroShare Raster Viewer!-->
+                </h4>
+            </div>
+            <div class="modal-body">
+                <div id="welcome-info">
+                    <ol>
+                        <h6>
+                            {% autoescape off %}
+                                {% if popup_content %}
+                                        {{ popup_content }}
+                                {% endif %}
+                            {% endautoescape %}
+                        <!--This app should be launched from <a href="https://www.hydroshare.org">HydroShare</a>.-->
+                        </h6>
+                    </ol>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" id="close-popup" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- End Modal -->
+{{block.super}}
+{% endblock %}
+
+
+
+{% block app_content %}
 <div id="map" class="map"></div>
 
+<div id="success_flag" style="display: none;">
+    {% if success_flag %}
+        {{ success_flag }}
+    {% else %}
+        false
+    {% endif %}
+</div>
 
 {% endblock %}
 

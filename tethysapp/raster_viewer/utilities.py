@@ -3,10 +3,11 @@ from tethys_apps.base.persistent_store import get_persistent_store_engine as gps
 
 from django.shortcuts import render
 from django.http import Http404
-import urllib2
 #from tethys_apps.base import TethysAppBase, SpatialDatasetService
 from tethys_dataset_services.engines import GeoServerSpatialDatasetEngine
 import zipfile
+import urllib2, json, base64
+
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -120,10 +121,9 @@ def addZippedTif2Geoserver(geosvr_url_base, uname, upwd, ws_name, store_name, zi
 
 def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
 
-
     rslt = {}
 
-    geosvr_ulr_wms = geosvr_url_base+"/geoserver/wms/"
+    geosvr_ulr_wms = geosvr_url_base + "/geoserver/wms/"
     layer = wsName + ":" + layerName
     print geosvr_ulr_wms
     print layer
@@ -148,89 +148,31 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
             return rslt
 
         j = json.loads(response)
+        print j
+        if "EPSG:404000" in str(j):
+            raise
         bounding= j['coverage']['latLonBoundingBox']
         extent=[bounding['minx'], bounding['maxx'], bounding['miny'], bounding['maxy']]
         print "extent:"
         print extent
 
-        rslt['success'] = True
         rslt['minx'] = bounding['minx']
         rslt['miny'] = bounding['miny']
         rslt['maxx'] = bounding['maxx']
         rslt['maxy'] = bounding['maxy']
+        rslt['success'] = True
         return rslt
 
     except urllib2.HTTPError as e:
-        print e
+        print ("The resource is not on Geoserver!")
+        return {"success": False}
+    except Exception as e:
+        print ("The resouce has EPSG:404000 local crs")
         return {"success": False}
 
 
-def getMapParas2(geosvr_url_base, wsName, store_id, layerName, un, pw):
-
-    try:
-        geosvr_ulr_wms = geosvr_url_base+"/geoserver/wms/"
-        layer = wsName + ":" + layerName
-        print geosvr_ulr_wms
-        print layer
-
-        #manually create a http query to get Rater bounding box
-        #not a good practice, consider using tethys geoserver api or gisconfig
-        import urllib2, json, base64
-        url = '/geoserver/rest/workspaces/{0}/coveragestores/{1}/coverages/{2}.json'
-        url = geosvr_url_base + url.format(wsName, store_id, layerName)
-        print "Geo Auth: " + url
-
-        authKey = base64.encodestring('%s:%s' % (un, pw)).replace('\n', '')
-        request = urllib2.Request(url)
-        headers = {'Authorization': "Basic " + authKey}
-        for k in headers.keys():
-            request.add_header(k, headers[k])
-        try:
-            response = urllib2.urlopen(request, timeout=30).read()
-            j = json.loads(response)
-            bounding= j['coverage']['latLonBoundingBox']
-            extent=[bounding['minx'], bounding['maxx'], bounding['miny'], bounding['maxy']]
-            print "extent:"
-            print extent
-            #[-135, 22, -55, 54]
-            center = [(bounding['minx']+bounding['maxx'])*0.5, (bounding['miny']+bounding['maxy'])*0.5]
-            #[-100, 40]
-            print "center:"
-            print center
-
-        except urllib2.HTTPError as e:
-            print e
-            print e.header
-            print e.read()
-            raise Exception("getMapParas() Auth Error")
-
-        map_view_options = {'height': '400px',
-                    'width': '100%',
-                    'controls': ['ZoomSlider',
-                                 'Rotate',
-                                 'FullScreen',
-                                 'ScaleLine',
-                                 {'ZoomToExtent': {'projection': 'EPSG:4326',
-                                                   'extent': extent
-                                                  }},
-                                 {'MousePosition': {'projection': 'EPSG:4326'}},
-                    ],
-                    'layers': [{'TiledWMS': {'url': geosvr_ulr_wms,
-                                        'params': {'LAYERS': layer, 'TILED': True},
-                                        'serverType': 'geoserver'}
-                                },
-                    ],
-                    'view': {'projection': 'EPSG:4326',
-                             'center': center, 'zoom': 8,
-                             'maxZoom': 18, 'minZoom': 1},
-                    'base_map': 'OpenStreetMap'
-        }
 
 
-        return map_view_options
-    except:
-        print ("getMapParas() error")
-        raise Exception("getMapParas() error")
 
 def getGeoSvrUrlBase(request, base_url):
 

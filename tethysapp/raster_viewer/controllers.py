@@ -5,7 +5,8 @@ import urllib2
 from tethys_dataset_services.engines import GeoServerSpatialDatasetEngine
 import zipfile
 from oauthlib.oauth2 import TokenExpiredError
-from hs_restclient import HydroShare, HydroShareAuthOAuth2, HydroShareNotAuthorized
+from hs_restclient import HydroShare, HydroShareAuthOAuth2, HydroShareNotAuthorized, HydroShareNotFound
+from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 from social_auth.models import UserSocialAuth
 from django.conf import settings
@@ -18,15 +19,33 @@ import os
 from django.contrib.sites.shortcuts import get_current_site
 from utilities import *
 
-hs_instance_name = "www"
-hs_hostname = "{0}.hydroshare.org".format(hs_instance_name)
+###########
 
 #geosvr_url_base='http://appsdev.hydroshare.org:8181'
 #geosvr_url_base='http://apps.hydroshare.org:8181'
-geosvr_url_base='http://127.0.0.1:8181'
+geosvr_url_base = 'http://127.0.0.1:8181'
+geosvr_user = 'admin'
+geosvr_pw = 'geoserver'
+hs_instance_name = "www"
 
-geosvr_user='admin'
-geosvr_pw='geoserver'
+###########
+
+hs_hostname = "{0}.hydroshare.org".format(hs_instance_name)
+popup_title_WELCOME = "Welcome to the HydroShare Raster Viewer"
+popup_title_ERROR = "Error"
+popup_title_WARNING = "Warning"
+
+popup_content_LOADING_DATA = "Loading data..."
+popup_content_NOT_LAUNCHED_FROM_HYDROSHARE = "Sorry, this app should be launched from <a href='https://{0}.hydroshare.org/my-resources/'>HydroShare</a>.".format(hs_instance_name)
+popup_content_UNKNOWN_ERROR = "Sorry, we are having an internal error!"
+popup_content_NO_PERMISSION = "Sorry, you have no permission on this resource."
+popup_content_NOT_FOUND = "Sorry, we cannot find this resource on {0}.".format(hs_hostname)
+popup_content_ANONYMOUS_USER = "Please <a href='https://{0}.hydroshare.org/accounts/login/'>sign in HydroShare</a> and then launch this app again.".format(hs_instance_name)
+popup_content_TOKEN_EXPIRED = "Login timed out! Please <a href='/oauth2/login/hydroshare'>sign in with your HydroShare account</a> again."
+popup_content_NOT_OAUTH_LOGIN = "Please sign out and re-sign in with your HydroShare account."
+popup_content_NOT_RASTER_RESOURCE = "Sorry, this resource is not a HydroShare Raster Resource."
+popup_content_NO_RESOURCEID_IN_SESSION = "Sorry, the resource id is missing."
+popup_content_INVALID_GEOTIFF = "This resource file is not a valid GeoTIFF or has no projection information."
 
 extract_base_path = '/tmp'
 
@@ -64,54 +83,98 @@ def home(request):
     # import pydevd
     # pydevd.settrace('172.17.42.1', port=21000, suspend=False)
 
+
+    popup_title = popup_title_WELCOME
+    popup_content = popup_content_LOADING_DATA
+    success_flag = "true"
+    resource_title = None
+
     if request.GET:
-        res_id = request.GET["res_id"]
-        src = request.GET['src']
-        usr = request.GET['usr']
+        res_id = request.GET.get("res_id", None)
+        src = request.GET.get('src', None)
+        usr = request.GET.get('usr', None)
 
-        request.session['res_id'] = res_id
-        request.session['src'] = src
-        request.session['usr'] = usr
-    try:
-        # res_id = "b7822782896143ca8712395f6814c44b"
-        # res_id = "877bf9ed9e66468cadddb229838a9ced"
-        # res_id = "e660640a7b084794aa2d70dc77cfa67b"
-        # private res
-        # res_id = "a4a4bca8369e4c1e88a1b35b9487e731"
-        # request.session['res_id'] = res_id
+        if res_id is None or src is None or src != "hs" or usr is None:
+            popup_title = popup_title_ERROR
+            # popup_content = "This app should be launched from HydroShare website."
+            popup_content = popup_content_NOT_LAUNCHED_FROM_HYDROSHARE
+            success_flag = "false"
+        elif usr.lower() == "anonymous":
+            popup_title = popup_title_ERROR
+            popup_content = popup_content_ANONYMOUS_USER
+            success_flag = "false"
+        else:
+            request.session['res_id'] = res_id
+            request.session['src'] = src
+            request.session['usr'] = usr
+            try:
+                # res_id = "b7822782896143ca8712395f6814c44b"
+                # res_id = "877bf9ed9e66468cadddb229838a9ced"
+                # res_id = "e660640a7b084794aa2d70dc77cfa67b"
+                # private res
+                # res_id = "a4a4bca8369e4c1e88a1b35b9487e731"
+                # request.session['res_id'] = res_id
 
-        hs = getOAuthHS(request)
-        res_landing_page = "https://{0}.hydroshare.org/resource/{1}/".format(hs_instance_name, res_id)
-        resource_md = hs.getSystemMetadata(res_id)
-        resource_type = resource_md.get("resource_type", "")
-        resource_title = resource_md.get("resource_title", "")
-        hs_hostname = "{0}.hydroshare.org".format(hs_instance_name)
-        if resource_type.lower() != "rasterresource":
-            raise Http404("Not RasterResource")
+                hs = getOAuthHS(request)
+                res_landing_page = "https://{0}.hydroshare.org/resource/{1}/".format(hs_instance_name, res_id)
+                resource_md = hs.getSystemMetadata(res_id)
+                resource_type = resource_md.get("resource_type", "")
+                resource_title = resource_md.get("resource_title", "")
 
-        context = {}
+                if resource_type.lower() != "rasterresource":
+                    popup_title = popup_title_ERROR
+                    popup_content = popup_content_NOT_RASTER_RESOURCE
+                    success_flag = "false"
+                    #raise Http404("Not RasterResource")
+            except ObjectDoesNotExist as e:
+                print str(e)
+                popup_title = popup_title_ERROR
+                popup_content = popup_content_NOT_OAUTH_LOGIN
+                success_flag = "false"
+            except TokenExpiredError as e:
+                print str(e)
+                popup_title = popup_title_WARNING
+                popup_content = popup_content_TOKEN_EXPIRED
+                success_flag = "false"
+                # raise Http404("Token Expired")
+            except HydroShareNotAuthorized as e:
+                print str(e)
+                popup_title = popup_title_ERROR
+                popup_content = popup_content_NO_PERMISSION
+                success_flag = "false"
+                # raise Http404("Your have no permission on this resource")
+            except HydroShareNotFound as e:
+                print str(e)
+                popup_title = popup_title_ERROR
+                popup_content = popup_content_NOT_FOUND
+                success_flag = "false"
+            except Exception as e:
+                print str(e)
+                popup_title = popup_title_ERROR
+                popup_content = popup_content_UNKNOWN_ERROR
+                success_flag = "false"
+                # raise
+    else:
+        popup_title = popup_title_ERROR
+        popup_content = popup_content_NOT_LAUNCHED_FROM_HYDROSHARE
+        success_flag = "false"
 
-        return render(request, 'raster_viewer/home.html', context)
-    except TokenExpiredError as e:
-        # TODO: redirect back to login view, giving this view as the view to return to
-        #logger.error("TokenExpiredError: TODO: redirect to login view")
-        raise Http404("Token Expired")
-    except HydroShareNotAuthorized as e:
-        raise Http404("Your have no permission on this resource")
-    except:
-        raise
+    context = {"popup_title": popup_title, "popup_content": popup_content, "success_flag": success_flag, 'resource_title': resource_title}
+    return render(request, 'raster_viewer/home.html', context)
 
 
 def getOAuthHS(request):
-    try:
-        client_id = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_KEY", "None")
-        client_secret = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_SECRET", "None")
-        token = request.user.social_auth.get(provider='hydroshare').extra_data['token_dict']
-        auth = HydroShareAuthOAuth2(client_id, client_secret, token=token)
-        hs = HydroShare(auth=auth, hostname=hs_hostname)
-        return hs
-    except:
-        return None
+
+    client_id = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_KEY", "None")
+    client_secret = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_SECRET", "None")
+
+    # this line will throw out from django.core.exceptions.ObjectDoesNotExist if current user is not signed in via HydroShare OAuth
+    token = request.user.social_auth.get(provider='hydroshare').extra_data['token_dict']
+
+    auth = HydroShareAuthOAuth2(client_id, client_secret, token=token)
+    hs = HydroShare(auth=auth, hostname=hs_hostname)
+    return hs
+
 
 
 def draw_raster(request):
@@ -155,18 +218,57 @@ def draw_raster(request):
             map_dict['ws_name'] = hs_hostname
             map_dict['store_name'] = res_id
             map_dict['layer_name'] = res_id
+            if map_dict["success"] == False:
+                map_dict['popup_title'] = popup_title_ERROR
+                map_dict['popup_content'] = popup_content_INVALID_GEOTIFF
 
+        else:
+            map_dict["success"] = False
+            map_dict['popup_title'] = popup_title_ERROR
+            map_dict['popup_content'] = popup_content_NO_RESOURCEID_IN_SESSION
+
+
+    except ObjectDoesNotExist as e:
+        print str(e)
+        popup_title = popup_title_ERROR
+        popup_content = popup_content_NOT_OAUTH_LOGIN
+        map_dict["success"] = False
+        map_dict['popup_title'] = popup_title
+        map_dict['popup_content'] = popup_content
+    except TokenExpiredError as e:
+        print str(e)
+        popup_title = popup_title_WARNING
+        popup_content = popup_content_TOKEN_EXPIRED
+        map_dict["success"] = False
+        map_dict['popup_title'] = popup_title
+        map_dict['popup_content'] = popup_content
+        # raise Http404("Token Expired")
+    except HydroShareNotAuthorized as e:
+        print str(e)
+        popup_title = popup_title_ERROR
+        popup_content = popup_content_NO_PERMISSION
+        map_dict["success"] = False
+        map_dict['popup_title'] = popup_title
+        map_dict['popup_content'] = popup_content
+        # raise Http404("Your have no permission on this resource")
+    except HydroShareNotFound as e:
+        print str(e)
+        popup_title = popup_title_ERROR
+        popup_content = popup_content_NOT_FOUND
+        map_dict["success"] = False
+        map_dict['popup_title'] = popup_title
+        map_dict['popup_content'] = popup_content
+    except Exception as e:
+        print str(e)
+        popup_title = popup_title_ERROR
+        popup_content = popup_content_UNKNOWN_ERROR
+        map_dict["success"] = False
+        map_dict['popup_title'] = popup_title
+        map_dict['popup_content'] = popup_content
+        # raise
+    finally:
         return JsonResponse(map_dict)
 
-    except TokenExpiredError as e:
-        # TODO: redirect back to login view, giving this view as the view to return to
-        #logger.error("TokenExpiredError: TODO: redirect to login view")
-        raise Http404("Token Expired")
-    except HydroShareNotAuthorized as e:
-        raise Http404("Your have no permission on this resource")
-    except:
-        raise
-    finally:
         if temp_dir is not None:
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
