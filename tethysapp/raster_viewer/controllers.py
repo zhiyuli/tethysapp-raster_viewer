@@ -36,7 +36,7 @@ popup_title_ERROR = "Error"
 popup_title_WARNING = "Warning"
 
 popup_content_LOADING_DATA = "Loading data..."
-popup_content_NOT_LAUNCHED_FROM_HYDROSHARE = "Sorry, this app should be launched from <a href='https://{0}.hydroshare.org/my-resources/'>HydroShare</a>.".format(hs_instance_name)
+popup_content_NOT_LAUNCHED_FROM_HYDROSHARE = "This app should be launched from <a href='https://{0}.hydroshare.org/my-resources/'>HydroShare</a>.<br>Or, you may create a URL like this:<br><a href='https://appsdev.hydroshare.org/apps/raster-viewer/?src=hs&usr=demo&res_id=c813e5c26ba24222ba1b73f43943aca6'>https://appsdev.hydroshare.org/apps/raster-viewer/?src=hs&usr=demo&res_id=c813e5c26ba24222ba1b73f43943aca6</a><br>Please replace value 'res_id' with your resource id.".format(hs_instance_name)
 popup_content_UNKNOWN_ERROR = "Sorry, we are having an internal error!"
 popup_content_NO_PERMISSION = "Sorry, you have no permission on this resource."
 popup_content_NOT_FOUND = "Sorry, we cannot find this resource on {0}.".format(hs_hostname)
