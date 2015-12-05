@@ -10,7 +10,7 @@ function create_check_box(name, vaule, text, check_state, fn_callback)
     checkbox.name = name;      // give it a name we can check on the server side
     checkbox.value = vaule;         // make its value "pair"
     checkbox.checked = check_state;
-    checkbox.addEventListener('CheckboxStateChange', fn_callback);
+    checkbox.addEventListener('change', fn_callback);
 
     label.appendChild(checkbox);   // add the box to the element
     label.appendChild(description);// add the description to the element
