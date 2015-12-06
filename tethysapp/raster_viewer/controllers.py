@@ -20,13 +20,18 @@ from django.contrib.sites.shortcuts import get_current_site
 from utilities import *
 
 ###########
-
-#geosvr_url_base='http://appsdev.hydroshare.org:8181'
-#geosvr_url_base='http://apps.hydroshare.org:8181'
+# geosvr_url_base='http://apps.hydroshare.org:8181'
+# geosvr_url_base='http://appsdev.hydroshare.org:8181'
 geosvr_url_base = 'http://127.0.0.1:8181'
+
 geosvr_user = 'admin'
 geosvr_pw = 'geoserver'
+
 hs_instance_name = "www"
+
+# tethys_url_base = "https://apps.hydroshare.org"
+# tethys_url_base = "https://appsdev.hydroshare.org"
+# tethys_url_base = "http://127.0.0.1:8000"
 
 ###########
 
@@ -35,8 +40,7 @@ popup_title_WELCOME = "Welcome to the HydroShare Raster Viewer"
 popup_title_ERROR = "Error"
 popup_title_WARNING = "Warning"
 
-popup_content_LOADING_DATA = "Loading data..."
-popup_content_NOT_LAUNCHED_FROM_HYDROSHARE = "This app should be launched from <a href='https://{0}.hydroshare.org/my-resources/'>HydroShare</a>.<br>Or, you may create a URL like this:<br><a href='https://appsdev.hydroshare.org/apps/raster-viewer/?src=hs&usr=demo&res_id=c813e5c26ba24222ba1b73f43943aca6'>https://appsdev.hydroshare.org/apps/raster-viewer/?src=hs&usr=demo&res_id=c813e5c26ba24222ba1b73f43943aca6</a><br>Please replace value 'res_id' with your resource id.".format(hs_instance_name)
+popup_content_NOT_LAUNCHED_FROM_HYDROSHARE = "This app should be launched from <a href='https://{0}.hydroshare.org/my-resources/'>HydroShare</a>.".format(hs_instance_name)
 popup_content_UNKNOWN_ERROR = "Sorry, we are having an internal error!"
 popup_content_NO_PERMISSION = "Sorry, you have no permission on this resource."
 popup_content_NOT_FOUND = "Sorry, we cannot find this resource on {0}.".format(hs_hostname)
@@ -85,7 +89,7 @@ def home(request):
 
 
     popup_title = popup_title_WELCOME
-    popup_content = popup_content_LOADING_DATA
+    popup_content = popup_content_NOT_LAUNCHED_FROM_HYDROSHARE
     success_flag = "true"
     resource_title = None
 
@@ -95,10 +99,7 @@ def home(request):
         usr = request.GET.get('usr', None)
 
         if res_id is None or src is None or src != "hs" or usr is None:
-            popup_title = popup_title_ERROR
-            # popup_content = "This app should be launched from HydroShare website."
-            popup_content = popup_content_NOT_LAUNCHED_FROM_HYDROSHARE
-            success_flag = "false"
+            success_flag = "welcome"
         elif usr.lower() == "anonymous":
             popup_title = popup_title_ERROR
             popup_content = popup_content_ANONYMOUS_USER
@@ -155,11 +156,14 @@ def home(request):
                 success_flag = "false"
                 # raise
     else:
-        popup_title = popup_title_ERROR
-        popup_content = popup_content_NOT_LAUNCHED_FROM_HYDROSHARE
-        success_flag = "false"
+        success_flag = "welcome"
 
-    context = {"popup_title": popup_title, "popup_content": popup_content, "success_flag": success_flag, 'resource_title': resource_title}
+    context = {"popup_title": popup_title,
+               "popup_content": popup_content,
+               "success_flag": success_flag,
+               'resource_title': resource_title,
+            }
+
     return render(request, 'raster_viewer/home.html', context)
 
 
