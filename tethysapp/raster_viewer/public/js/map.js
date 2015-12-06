@@ -85,12 +85,18 @@ $(document).ready(function () {
                 {
                     popup_title = data["popup_title"]
                     popup_content = data["popup_content"]
-                    alert(popup_content)
+                    $('#error-title').html(popup_title)
+                    $('#error-info').html(popup_content)
+                    popupDiv.modal("show")
+
+                    //alert(popup_content)
                     document.getElementById('data_loading_div').innerHTML = "";
                 }
             },
             error: function (jqXHR, textStatus, errorThrown) {
-                alert("Looks like this is a large size raster resource. Please try refreshing this page later.");
+                $('#error-title').html("Error")
+                $('#error-info').html("Looks like this is a large size raster resource. Please try refreshing this page later.")
+                popupDiv.modal("show")
                 console.log(textStatus, errorThrown);
                 document.getElementById('data_loading_div').innerHTML = "";
             }

@@ -54,12 +54,14 @@
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
                 <h4 class="modal-title">
+                    <div id="error-title">
                     {% autoescape off %}
                         {% if popup_title %}
                             {{popup_title}}
                         {% endif %}
                     {% endautoescape %}
                     <!--Welcome to the HydroShare Raster Viewer!-->
+                    </div>
                 </h4>
             </div>
             <div class="modal-body">

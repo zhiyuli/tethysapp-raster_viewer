@@ -43,7 +43,7 @@ popup_title_WARNING = "Warning"
 popup_content_NOT_LAUNCHED_FROM_HYDROSHARE = "This app should be launched from <a href='https://{0}.hydroshare.org/my-resources/'>HydroShare</a>.".format(hs_instance_name)
 popup_content_UNKNOWN_ERROR = "Sorry, we are having an internal error!"
 popup_content_NO_PERMISSION = "Sorry, you have no permission on this resource."
-popup_content_NOT_FOUND = "Sorry, we cannot find this resource on {0}.".format(hs_hostname)
+popup_content_NOT_FOUND = "Sorry, we cannot find this resource on HydroShare."
 popup_content_ANONYMOUS_USER = "Please <a href='https://{0}.hydroshare.org/accounts/login/'>sign in HydroShare</a> and then launch this app again.".format(hs_instance_name)
 popup_content_TOKEN_EXPIRED = "Login timed out! Please <a href='/oauth2/login/hydroshare'>sign in with your HydroShare account</a> again."
 popup_content_NOT_OAUTH_LOGIN = "Please sign out and re-sign in with your HydroShare account."
