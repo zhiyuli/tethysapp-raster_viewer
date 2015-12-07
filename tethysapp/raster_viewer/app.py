@@ -22,6 +22,11 @@ class HydroShareRasterViewer(TethysAppBase):
         url_maps = (UrlMap(name='home',
                            url='raster-viewer',
                            controller='raster_viewer.controllers.home'),
+
+                    UrlMap(name='draw_raster',
+                           url='draw-raster',
+                           controller='raster_viewer.controllers.draw_raster'),
+
         )
 
         return url_maps

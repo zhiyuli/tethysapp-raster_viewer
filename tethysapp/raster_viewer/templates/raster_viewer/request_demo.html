@@ -1,0 +1,102 @@
+{% extends "raster_viewer/base.html" %}
+{% load tethys_gizmos %}
+
+{% block app_navigation_items %}
+
+  <li>
+    <a href="{% url 'raster_viewer:home' %}">Back to viewer</a>
+  </li>
+
+{% endblock %}
+
+{% block app_content %}
+  <h1>Demo & Help</h1>
+  <h4>You can use this app to visualize a <a href="http://dev.hydroshare.org">HydroShare</a> Geographic Raster resource.</h4>
+<h4>1) Go to a HydroShare service instance (e.g. dev.hydroshare.org), find/create a Geographic Raster resource.</h4>
+<h4>2) Fill the following blanks on this page with correct Resource ID and <a href="http://trac.osgeo.org/geotiff/">GeoTiff</a> filename from HydroShare resource page.</h4>
+<h4>3) Click "View". (This may take seconds to minutes depending on the specific resource size)</h4>
+
+<h4>Next release will register this viewer into HydroShare system as a HydroShare App.
+Then you can launch this viewer from HydroShare resource page by a simple click.</h4>
+<h4>For more info, check our <a href="https://github.com/zhiyuli/tethysapp-raster_viewer">source code</a> at GitHub</h4>
+<h2></h2>
+  <form method="post" action="{% url 'raster_viewer:home' %}">
+      {% csrf_token %}
+      <input type="radio" name="branch" value="www" checked>www</input>
+      <input type="radio" name="branch" value="dev">dev</input>
+      <input type="radio" name="branch" value="beta">beta</input>
+      <input type="radio" name="branch" value="alpha">alpha</input>
+      <input type="radio" name="branch" value="playground">playground</input>
+
+      {% gizmo text_input text_input_options_res_id %}
+      {% gizmo text_input text_input_options_filename %}
+
+      <input type="submit" name="name-form-submit" class="btn btn-default" value="View"/>
+
+  </form>
+<button type="button" id="btnGet">GET request URL</button>
+<button type="button" id="btnRest">REST style URL</button>
+<h4><div id='div_url'>
+    </div></h4>
+
+
+{% endblock %}
+
+
+
+
+
+{% block scripts %}
+  {{ block.super }}
+
+  <script type="text/javascript">
+      var _host=window.location.host
+      var _url="{% url 'raster_viewer:home' %}";
+
+      $(function() {
+        $(document).ready(function () {
+        });
+
+        //http://127.0.0.1:8000/apps/tethys-hstools/branch/dev/res/72b1d67d415b4d949293b1e46d02367d/fn/referencetimeseries-2_23_2015-wml_2_0.wml/
+        $('#btnRest').click(function(){
+            url=_url;
+            cur_host=_host;
+            $('#div_url').empty();
+            url=url.concat("br/");
+            url=url.concat($("input[name='branch']:checked").val());
+            url=url.concat("/res/");
+            url=url.concat(res_id.value);
+            url=url.concat("/fn/");
+            url=url.concat(filename.value);
+            url=url.concat("/");
+            //$('#div_url').append(cur_host.concat(url));
+            var full_url="http://".concat(cur_host.concat(url))
+            var myNewElem=$("<a/>", {html:full_url,
+                href: full_url
+            });
+            myNewElem.appendTo('#div_url');
+        });
+
+        //http://127.0.0.1:8000/apps/tethys-hstools/?branch=alpha&filename=referencetimeseries-2_23_2015-wml_2_0.wml&res_id=72b1d67d415b4d949293b1e46d02367d
+        $('#btnGet').click(function(){
+            url=_url;
+            cur_host=_host;
+            $('#div_url').empty();
+            url=url.concat("?branch=");
+            url=url.concat($("input[name='branch']:checked").val());
+            url=url.concat("&res_id=");
+            url=url.concat(res_id.value);
+            url=url.concat("&filename=");
+            url=url.concat(filename.value);
+            //$('#div_url').append(cur_host.concat(url))
+            var full_url="http://".concat(cur_host.concat(url))
+            var myNewElem=$("<a/>", {html:full_url,
+                href: full_url
+            });
+            myNewElem.appendTo('#div_url');
+        });
+    });
+
+
+</script>
+{% endblock %}
