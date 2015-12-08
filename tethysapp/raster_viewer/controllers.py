@@ -18,6 +18,7 @@ import shutil
 import os
 from django.contrib.sites.shortcuts import get_current_site
 from utilities import *
+from model import Question
 
 ###########
 # geosvr_url_base='http://apps.hydroshare.org:8181'
@@ -87,6 +88,8 @@ def home(request):
     # import pydevd
     # pydevd.settrace('172.17.42.1', port=21000, suspend=False)
 
+    q1 = Question.create("Q1")
+    q1.save()
 
     popup_title = popup_title_WELCOME
     popup_content = popup_content_NOT_LAUNCHED_FROM_HYDROSHARE

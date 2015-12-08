@@ -6,6 +6,7 @@
 {% block global_scripts %}
   {{ block.super }}
   <script src="{% static 'raster_viewer/vendor/openlayers/v3.11.2-dist/ol.js' %}" type="text/javascript"></script>
+  <script src="{% static 'raster_viewer/vendor/jscolor/v2.0.4/jscolor.js' %}" type="text/javascript"></script>
 {% endblock %}
 
 {% block styles %}
@@ -21,17 +22,35 @@
 
 
 {% block app_navigation_items %}
+
     <div id="layer_control_div">
     </div>
     <div id="data_loading_div">
     </div>
+    <div id="color-picker">
+        <p>
+            Pick color for the Min and Max values:<br>
+            <p>Min: <input class="jscolor" id="min-color" value="000000"></p>
+            <p>Max: <input class="jscolor" id="max-color" value="FFFFFF"></p>
+        </p>
+        <input id="refresh_map" type="button" onclick="refreshmap()" value="Apply"/>
+        <input id="reset_map" type="button" onclick="resetmap()" value="Reset"/>
+    </div>
+    <div id="nodelist">
+        <em>Click on the map to get feature info</em>
+    </div>
+
 {% endblock %}
-
-
-
 
 {% block app_content %}
 
+<!--<div>-->
+<!--<div id="location" style="float: left; width: 80%"></div>-->
+<!--<div id="scale" style="float: right"></div>-->
+<!--</div>-->
+
+<div id="location" ></div>
+<div id="scale"></div>
 <div id="map" class="map"></div>
 
 <div id="success_flag" style="display: none;">
