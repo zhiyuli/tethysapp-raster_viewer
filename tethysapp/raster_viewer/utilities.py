@@ -176,7 +176,7 @@ def extract_geotiff_stat_info(tif_full_path):
     print tif_full_path
     band_stat_info_array = []
     try:
-        src_ds = gdal.Open(tif_full_path)
+        src_ds = gdal.Open(str(tif_full_path))
         for band in range(src_ds.RasterCount):
             band_id = band+1
             band_info = {}
