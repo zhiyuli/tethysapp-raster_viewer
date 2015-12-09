@@ -15,12 +15,14 @@ var hs_layer_tiled;
 var hs_layer_single_tile;
 var sld_body_temple = '<?xml version="1.0" encoding="ISO-8859-1"?><StyledLayerDescriptor version="1.0.0" xsi:schemaLocation="http://www.opengis.net/sld StyledLayerDescriptor.xsd" xmlns="http://www.opengis.net/sld" xmlns:ogc="http://www.opengis.net/ogc" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
       + "<NamedLayer><Name>_WS_AND_LAYER_NAME_</Name><UserStyle><Name>mysld</Name><Title>Two color gradient</Title><FeatureTypeStyle><Rule><RasterSymbolizer><ColorMap>"
-      + '<ColorMapEntry color="#_MIN_COLOR_" quantity="0" /><ColorMapEntry color="#_MAX_COLOR_" quantity="5000" /></ColorMap></RasterSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>'
-var layer_id
+      + '<ColorMapEntry color="#_MIN_COLOR_" quantity="_MIN_VAL_" /><ColorMapEntry color="#_MAX_COLOR_" quantity="_MAX_VAL_" /></ColorMap></RasterSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>'
 
+var layer_id;
+var min_val=0;
+var max_val=5000;
 
-slc_lonlat = [-111.8833, 40.75]
-san_fran_lonlat = [-122.4167, 37.7833]
+slc_lonlat = [-111.8833, 40.75];
+san_fran_lonlat = [-122.4167, 37.7833];
 slc_3857 = ol.proj.transform(slc_lonlat, 'EPSG:4326', 'EPSG:3857');
 san_fran_3857 = ol.proj.transform(san_fran_lonlat, 'EPSG:4326', 'EPSG:3857');
 
@@ -34,6 +36,10 @@ function refreshmap()
         sld_body = sld_body_temple.replace("_MIN_COLOR_", min_color);
         sld_body = sld_body.replace("_MAX_COLOR_", max_color);
         sld_body = sld_body.replace("_WS_AND_LAYER_NAME_", layer_id);
+        sld_body = sld_body.replace("_MIN_VAL_", min_val);
+        sld_body = sld_body.replace("_MAX_VAL_", max_val);
+        console.log(sld_body)
+
 
         var oseamNew = hs_layer_single_tile.getSource();
 	    oseamNew.updateParams({'sld_body': sld_body});
@@ -99,22 +105,25 @@ map.getView().on('change:resolution', function(evt) {
         document.getElementById('scale').innerHTML = "Scale = 1 : " + scale;
       });
 
-map.on('singleclick', function(evt) {
-        document.getElementById('nodelist').innerHTML = "Loading... please wait...";
-        var view = map.getView();
-        var viewResolution = view.getResolution();
-        var source = hs_layer_single_tile.get('visible') ? hs_layer_single_tile.getSource() : null;
-        if (source != null)
-        {
-            var url = source.getGetFeatureInfoUrl(
-          evt.coordinate, viewResolution, view.getProjection(),
-          {'INFO_FORMAT': 'application/json', 'FEATURE_COUNT': 50});
-            if (url) {
-              document.getElementById('nodelist').innerHTML = '<iframe seamless src="' + url + '"></iframe>';
-            }
-        }
-
-      });
+//
+//map.on('singleclick', function(evt) {
+//        document.getElementById('nodelist').innerHTML = "Loading... please wait...";
+//        var view = map.getView();
+//        var viewResolution = view.getResolution();
+//        var source = hs_layer_single_tile.get('visible') ? hs_layer_single_tile.getSource() : null;
+//        if (source != null)
+//        {
+//            var url = source.getGetFeatureInfoUrl(
+//          evt.coordinate, viewResolution, view.getProjection(),
+//          {'INFO_FORMAT': 'application/json', 'FEATURE_COUNT': 50});
+//            console.log(url)
+//            if (url) {
+//
+//
+//              document.getElementById('nodelist').innerHTML = '<iframe seamless src="' + url + '"></iframe>';
+//            }
+//        }
+//      });
 
 
 $('#btn-testing-url').on('click', function () {
@@ -163,7 +172,8 @@ $(document).ready(function () {
                     miny = data["miny"]
                     maxx = data["maxx"]
                     maxy = data["maxy"]
-                    draw_raster(geosvr_url_base, ws_name, store_name, layer_name, minx, miny, maxx, maxy)
+                    band_stat_info_array = data["band_stat_info_array"]
+                    draw_raster(geosvr_url_base, ws_name, store_name, layer_name, minx, miny, maxx, maxy, band_stat_info_array)
                     chkbox = create_check_box("raster", "raster", "Raster Resource Layer", true, chkbox_callback)
                     document.getElementById('layer_control_div').appendChild(chkbox);
                     var br = document.createElement('br');
@@ -235,8 +245,32 @@ function chkbox_callback(evt){
 }
 
 
-function draw_raster (geosvr_url_base, ws_name, store_name, layer_name, minx, miny, maxx, maxy)
+function draw_raster (geosvr_url_base, ws_name, store_name, layer_name, minx, miny, maxx, maxy, band_stat_info_array)
 {
+
+    if (band_stat_info_array!=null && band_stat_info_array instanceof Array)
+    {
+        if (band_stat_info_array.length != 1)
+        {
+            $('#color-picker').css('visibility', 'hidden');
+            console.log("multiple bands or 0 brand")
+        }
+        else
+        {
+            $('#color-picker').css('visibility', 'visible');
+            band_info = band_stat_info_array[0]
+            min_val = band_info["min_val"]
+            max_val = band_info["max_val"]
+            console.log(min_val)
+            console.log(max_val)
+        }
+    }
+    else
+    {
+        $('#color-picker').css('visibility', 'hidden');
+    }
+
+
     geo_server_wms = geosvr_url_base + '/geoserver/wms'
     layer_id = ws_name + ':' + layer_name
     extent_4326 = [minx, miny, maxx, maxy]

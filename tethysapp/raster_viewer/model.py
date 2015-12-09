@@ -20,11 +20,17 @@ class RasterStatistics(Base):
     res_id = Column(String)
     min_val = Column(Float)
     max_val = Column(Float)
+    band_id = Column(Integer)
+    band_name = Column(String)
+    hs_branch = Column(String)
 
-    def __init__(self, res_id, min_val, max_val):
+    def __init__(self, res_id, min_val, max_val, band_id, band_name, hs_branch):
         """
         Constructor for a gage
         """
         self.res_id = res_id
         self.min_val = min_val
         self.max_val = max_val
+        self.band_id = band_id
+        self.band_name = band_name
+        self.hs_branch = hs_branch

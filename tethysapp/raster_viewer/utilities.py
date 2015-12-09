@@ -17,6 +17,7 @@ import shutil
 import os
 from django.contrib.sites.shortcuts import get_current_site
 import sys
+from osgeo import gdal
 
 def get_persistent_store_engine(persistent_store_name):
     """
@@ -170,9 +171,29 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
         print ("The resouce has EPSG:404000 local crs")
         return {"success": False}
 
-
-
-
+def extract_geotiff_stat_info(tif_full_path):
+    band_stat_info_array = []
+    try:
+        src_ds = gdal.Open(tif_full_path)
+        for band in range(src_ds.RasterCount):
+            band_id = band+1
+            band_info = {}
+            print ("Begin get GetRasterBand for band {0}".format(str(band_id)))
+            srcband = src_ds.GetRasterBand(band_id)
+            if srcband is not None:
+                stats = srcband.GetStatistics(True, True)
+                if stats is not None:
+                    band_info["band_id"]= band_id
+                    band_info["min_val"]= stats[0]
+                    band_info["max_val"]= stats[1]
+                    band_info["mean"]= stats[2]
+                    band_info["std"]=  stats[3]
+                    band_stat_info_array.append(band_info)
+            print "End get GetRasterBand for band {0}" .format(str(band_id))
+    except Exception as e:
+        print ("extract_geotiff_stat_info Error")
+        print e
+    return band_stat_info_array
 
 def getGeoSvrUrlBase(request, base_url):
 
