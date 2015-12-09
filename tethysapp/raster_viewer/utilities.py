@@ -172,6 +172,8 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
         return {"success": False}
 
 def extract_geotiff_stat_info(tif_full_path):
+    print ("GDAL read:")
+    print tif_full_path
     band_stat_info_array = []
     try:
         src_ds = gdal.Open(tif_full_path)
