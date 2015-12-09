@@ -183,7 +183,17 @@ def extract_geotiff_stat_info(tif_full_path):
             print ("Begin get GetRasterBand for band {0}".format(str(band_id)))
             srcband = src_ds.GetRasterBand(band_id)
             if srcband is not None:
-                stats = srcband.GetStatistics(True, True)
+                # handle noDataValue and MinValue
+                # http://gis.stackexchange.com/questions/54150/gdal-does-not-ignore-nodata-value
+                # ndv = srcband.GetNoDataValue()
+                # if ndv is not None:
+                #     srcband.SetNoDataValue(float(ndv))
+
+                stats = srcband.ComputeStatistics(0)
+                if stats[0] <- 99999:
+                    srcband.SetNoDataValue(stats[0])
+                stats = srcband.ComputeStatistics(0)
+                # stats = srcband.GetStatistics(True, True)
                 if stats is not None:
                     band_info["band_id"]= band_id
                     band_info["min_val"]= stats[0]
