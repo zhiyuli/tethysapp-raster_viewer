@@ -261,8 +261,10 @@ function draw_raster (geosvr_url_base, ws_name, store_name, layer_name, minx, mi
             band_info = band_stat_info_array[0]
             min_val = band_info["min_val"]
             max_val = band_info["max_val"]
-            console.log(min_val)
-            console.log(max_val)
+            no_data_val =  band_info["no_data_val"]
+            console.log("min_val: ",min_val)
+            console.log("max_val: ", max_val)
+            console.log("no_data_val: ", no_data_val)
         }
     }
     else

@@ -23,10 +23,12 @@ from .model import engine, SessionMaker, RasterStatistics
 ###########
 # geosvr_url_base='http://apps.hydroshare.org:8181'
 # geosvr_url_base='http://appsdev.hydroshare.org:8181'
-geosvr_url_base = 'http://127.0.0.1:8181'
-
-geosvr_user = 'admin'
-geosvr_pw = 'geoserver'
+# geosvr_url_base = 'http://127.0.0.1:8181'
+geosvr_url_base = getattr(settings, "GEOSERVER_URL_BASE", "http://127.0.0.1:8181")
+# geosvr_user = 'admin'
+geosvr_user = getattr(settings, "GEOSERVER_USER_NAME", "admin")
+# geosvr_pw = 'geoserver'
+geosvr_pw = getattr(settings, "GEOSERVER_USER_PASSWORD", "geoserver")
 
 hs_instance_name = "www"
 
@@ -170,8 +172,8 @@ def home(request):
 
 def getOAuthHS(request):
 
-    client_id = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_KEY", "None")
-    client_secret = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_SECRET", "None")
+    client_id = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_KEY", None)
+    client_secret = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_SECRET", None)
 
     # this line will throw out from django.core.exceptions.ObjectDoesNotExist if current user is not signed in via HydroShare OAuth
     token = request.user.social_auth.get(provider='hydroshare').extra_data['token_dict']
@@ -210,12 +212,14 @@ def draw_raster(request):
                         band_max_val = r_stat.max_val
                         band_id = r_stat.band_id
                         band_name = r_stat.band_name
+                        band_no_data_val = r_stat.no_data_val
 
                         band_stat_info={}
                         band_stat_info["min_val"] = band_min_val
                         band_stat_info["max_val"] = band_max_val
                         band_stat_info["band_id"] = band_id
                         band_stat_info["band_name"] = band_name
+                        band_stat_info["no_data_val"] = band_no_data_val
                         band_stat_info_array.append(band_stat_info)
                 print("---------------------Load band_stat_info from DB-------------------------------")
                 print band_stat_info_array
@@ -258,7 +262,8 @@ def draw_raster(request):
                                                     max_val=band_info["max_val"],
                                                     band_id=band_info["band_id"],
                                                     band_name=str(band_info["band_id"]),
-                                                    hs_branch=hs_instance_name)
+                                                    hs_branch=hs_instance_name,
+                                                    no_data_val=band_info["no_data_val"])
                         session.add(band_info_db)
                     session.commit()
                     print("--------------- Save to DB : band_stat_info  ------------")

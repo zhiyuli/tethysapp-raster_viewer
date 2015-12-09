@@ -23,8 +23,9 @@ class RasterStatistics(Base):
     band_id = Column(Integer)
     band_name = Column(String)
     hs_branch = Column(String)
+    no_data_val = Column(Float)
 
-    def __init__(self, res_id, min_val, max_val, band_id, band_name, hs_branch):
+    def __init__(self, res_id, min_val, max_val, band_id, band_name, hs_branch, no_data_val):
         """
         Constructor for a gage
         """
@@ -34,3 +35,4 @@ class RasterStatistics(Base):
         self.band_id = band_id
         self.band_name = band_name
         self.hs_branch = hs_branch
+        self.no_data_val = no_data_val

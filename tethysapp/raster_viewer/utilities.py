@@ -18,6 +18,7 @@ import os
 from django.contrib.sites.shortcuts import get_current_site
 import sys
 from osgeo import gdal
+import math
 
 def get_persistent_store_engine(persistent_store_name):
     """
@@ -165,9 +166,11 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
         return rslt
 
     except urllib2.HTTPError as e:
+        print e
         print ("The resource is not on Geoserver!")
         return {"success": False}
     except Exception as e:
+        print e
         print ("The resouce has EPSG:404000 local crs")
         return {"success": False}
 
@@ -176,6 +179,7 @@ def extract_geotiff_stat_info(tif_full_path):
     print tif_full_path
     band_stat_info_array = []
     try:
+        # str(tif_full_path): add str() to tif_full_path to workaround a GDAL 1.7 bug
         src_ds = gdal.Open(str(tif_full_path))
         for band in range(src_ds.RasterCount):
             band_id = band+1
@@ -185,23 +189,35 @@ def extract_geotiff_stat_info(tif_full_path):
             if srcband is not None:
                 # handle noDataValue and MinValue
                 # http://gis.stackexchange.com/questions/54150/gdal-does-not-ignore-nodata-value
-                # ndv = srcband.GetNoDataValue()
-                # if ndv is not None:
-                #     srcband.SetNoDataValue(float(ndv))
+                # GetNoDataValue() only return currently stored NoDataValue
+                # ComputeStatistics(0) will scan the file and recalculate real Stat values (Min, Max...)
+                # The Min returnd by ComputeStatistics(0) may be the real NoDataValue or real Min value
 
-                stats = srcband.ComputeStatistics(0)
-                if stats[0] <- 99999:
-                    srcband.SetNoDataValue(stats[0])
+                ndv_stored = srcband.GetNoDataValue()
+                if ndv_stored is not None:
+                    min_value_recalculate = (srcband.ComputeStatistics(0))[0]
+                    max_value_recalculate = (srcband.ComputeStatistics(0))[1]
+                    if ndv_stored != min_value_recalculate and (abs(math.floor(math.log10(abs(ndv_stored)))-math.floor(math.log10(abs(min_value_recalculate)))) == 0):
+                        # ndv_stored is not accurate, min_value_recalculate is real no data value
+                        srcband.SetNoDataValue(min_value_recalculate)
+                    elif ndv_stored != max_value_recalculate and (abs(math.floor(math.log10(abs(ndv_stored)))-math.floor(math.log10(abs(max_value_recalculate)))) == 0):
+                        srcband.SetNoDataValue(max_value_recalculate)
+                else:
+                    ndv_stored = -987654321
+                    srcband.SetNoDataValue(ndv_stored)
+
+                ndv = srcband.GetNoDataValue()
                 stats = srcband.ComputeStatistics(0)
                 # stats = srcband.GetStatistics(True, True)
                 if stats is not None:
-                    band_info["band_id"]= band_id
-                    band_info["min_val"]= stats[0]
-                    band_info["max_val"]= stats[1]
-                    band_info["mean"]= stats[2]
-                    band_info["std"]=  stats[3]
+                    band_info["band_id"] = band_id
+                    band_info["min_val"] = stats[0]
+                    band_info["max_val"] = stats[1]
+                    band_info["mean"] = stats[2]
+                    band_info["std"] = stats[3]
+                    band_info["no_data_val"] = ndv_stored
                     band_stat_info_array.append(band_info)
-            print "End get GetRasterBand for band {0}" .format(str(band_id))
+            print "End get GetRasterBand for band {0}".format(str(band_id))
     except Exception as e:
         print ("extract_geotiff_stat_info Error")
         print e
