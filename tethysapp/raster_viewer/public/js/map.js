@@ -38,6 +38,8 @@ function refreshmap()
         sld_body = sld_body_temple.replace("_MIN_COLOR_", min_color);
         sld_body = sld_body.replace("_MAX_COLOR_", max_color);
         sld_body = sld_body.replace("_WS_AND_LAYER_NAME_", layer_id);
+
+        // see explanations in py code def extract_geotiff_stat_info()
         if (min_2nd_val < min_val)
         {
             sld_body = sld_body.replace("_MIN_VAL_", min_val);
@@ -149,14 +151,6 @@ $('#btn-testing-url').on('click', function () {
 });
 
 $(document).ready(function () {
-
-    //$('#welcome-info').html('<p>This app redirects from either the <a href="../nfie-irods-explorer">Tethys NFIE iRODS Explorer</a> or ' +
-    //        '<a href="https://www.hydroshare.org">HydroShare</a> and is ' +
-    //        'used to view RAPID Output NetCDF files in an interactive way. Without being redirected from one ' +
-    //        'of those sites, this app has little practical use since you cannot currently upload your own ' +
-    //        'RAPID Output NetCDF file. Please click the links to the resources above to browse their ' +
-    //        'file repositories. When locating an applicable NetCDF file, you will be given a "Open File ' +
-    //        'in Tethys Viewer" link that will redirect you here to view the chosen file. Good luck!');
 
     chkbox = create_check_box("basemap", "basemap", "Base Map", true, chkbox_callback)
     document.getElementById('layer_control_div').appendChild(chkbox);
@@ -272,11 +266,27 @@ function draw_raster (geosvr_url_base, ws_name, store_name, layer_name, minx, mi
         {
             $('#color-picker').css('visibility', 'hidden');
             console.log("multiple bands or 0 brand", band_stat_info_array.length)
+
         }
         else
         {
             $('#color-picker').css('visibility', 'visible');
-            band_info = band_stat_info_array[0]
+
+            if (json_response != null)
+            {
+                var band_count = json_response["coverage"]["dimensions"]["coverageDimension"].length;
+                if ( band_count> 1)
+                 {
+                     console.log("--------band_stat_from GeoServer --------")
+                     console.log('json_response["coverage"]["dimensions"]["coverageDimension"].length: ', band_count)
+                     $('#color-picker').css('visibility', 'hidden');
+                 }
+            }
+        }
+
+        for ( var i=0; i< band_stat_info_array.length; i++)
+        {
+            band_info = band_stat_info_array[i]
             min_val = band_info["min_val"]
             max_val = band_info["max_val"]
             mean_val = band_info["mean_val"]
@@ -284,24 +294,15 @@ function draw_raster (geosvr_url_base, ws_name, store_name, layer_name, minx, mi
             min_2nd_val = band_info["min_2nd_val"]
             max_2nd_val = band_info["max_2nd_val"]
             no_data_val =  band_info["no_data_val"]
-
-            console.log("min_val: ",min_val)
+            console.log("--------band_stat_from DB --------")
+            console.log("min_val: ", min_val)
             console.log("max_val: ", max_val)
             console.log("mean_val: ",mean_val)
             console.log("std_val: ", std_val)
             console.log("min_2nd_val: ",min_2nd_val)
             console.log("max_2nd_val: ", max_2nd_val)
             console.log("no_data_val: ", no_data_val)
-
-            if (json_response != null)
-            {
-                var band_count = json_response["coverage"]["dimensions"]["coverageDimension"].length;
-                if ( band_count> 1)
-                 {
-                     console.log('json_response["coverage"]["dimensions"]["coverageDimension"].length: ', band_count)
-                     $('#color-picker').css('visibility', 'hidden');
-                 }
-            }
+            console.log("----------------------")
         }
     }
     else

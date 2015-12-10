@@ -222,9 +222,20 @@ def extract_geotiff_stat_info(tif_full_path):
             if srcband is not None:
                 # handle noDataValue and MinValue
                 # http://gis.stackexchange.com/questions/54150/gdal-does-not-ignore-nodata-value
-                # GetNoDataValue() only return currently stored NoDataValue
-                # ComputeStatistics(0) will scan the file and recalculate real Stat values (Min, Max...)
-                # The Min returnd by ComputeStatistics(0) may be the real NoDataValue or real Min value
+                # GetNoDataValue() only return pre-stored NoDataValue
+                # ComputeStatistics(0) will scan the file and recalculate real Stat values (Min, Max...) on the fly
+
+                # Problem: If the NoDataValue is not set correctly and properly, it can cause trouble visualizing it.
+                # As we need to assign color A to the min value and color B to max value. if current min value is actually the nodatavalue but has not been set as,
+                # the color A will be assign to a very small value, all other raster data value are close to max value. So the whole picture will be in color B.
+                # Case 1: no nodatavalue has been set
+                # Case 2: nodatavalue has been set correctly
+                # Case 3: nodatavalue has been set but it is wrong or inaccurate (like https://www.hydroshare.org/resource/101f746de3ca4896a6d0f05206483766/)
+
+                # To aviod the above improper visualization and considering all possible cases of raster files, we extract the min_val, min_2nd_val, max_val, and max_2nd_val of a raster band
+                # and select the larger val between min_val and min_2nd_val to assign color A; the smaller val between max_val and max_2nd_val to assign color B
+                # this may cause some inaccuracy in visualization in some cases, like we may set color A to a real 2nd min value instead of the real min value.
+                # But we believe the loss in visualization is ignorable.
 
                min_max_2nd_min_max_dict = extract_min_max_2nd_min_max(srcband)
                nvd= min_max_2nd_min_max_dict["no_data_val"]
