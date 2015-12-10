@@ -17,7 +17,7 @@ import shutil
 import os
 from django.contrib.sites.shortcuts import get_current_site
 import sys
-from osgeo import gdal
+from osgeo import gdal, gdalconst
 import math
 
 def get_persistent_store_engine(persistent_store_name):
@@ -152,6 +152,7 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
         j = json.loads(response)
         print j
         if "EPSG:404000" in str(j):
+            print ("The resouce has EPSG:404000 local crs")
             raise
         bounding= j['coverage']['latLonBoundingBox']
         extent=[bounding['minx'], bounding['maxx'], bounding['miny'], bounding['maxy']]
@@ -162,6 +163,7 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
         rslt['miny'] = bounding['miny']
         rslt['maxx'] = bounding['maxx']
         rslt['maxy'] = bounding['maxy']
+        rslt['json_response'] = j
         rslt['success'] = True
         return rslt
 
@@ -171,8 +173,39 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
         return {"success": False}
     except Exception as e:
         print e
-        print ("The resouce has EPSG:404000 local crs")
         return {"success": False}
+
+def extract_min_max_2nd_min_max(srcband):
+
+    nvd_old = srcband.GetNoDataValue()
+
+    stat_old = srcband.ComputeStatistics(0)
+    min_val = stat_old[0]
+    max_val = stat_old[1]
+    mean_val = stat_old[2]
+    std_val = stat_old[3]
+
+    srcband.SetNoDataValue(min_val)
+    stat_2nd_min = srcband.ComputeStatistics(0)
+    min_2nd_val = stat_2nd_min[0]
+
+    srcband.SetNoDataValue(max_val)
+    stat_2nd_max = srcband.ComputeStatistics(0)
+    max_2nd_val = stat_2nd_max[1]
+
+    if nvd_old is not None:
+        srcband.SetNoDataValue(nvd_old)
+
+    return {
+            "no_data_val": nvd_old,
+            "min_val": min_val,
+            "max_val": max_val,
+            "mean_val":  mean_val,
+            "std_val": std_val,
+            "min_2nd_val": min_2nd_val,
+            "max_2nd_val": max_2nd_val
+            }
+
 
 def extract_geotiff_stat_info(tif_full_path):
     print ("GDAL read:")
@@ -180,7 +213,7 @@ def extract_geotiff_stat_info(tif_full_path):
     band_stat_info_array = []
     try:
         # str(tif_full_path): add str() to tif_full_path to workaround a GDAL 1.7 bug
-        src_ds = gdal.Open(str(tif_full_path))
+        src_ds = gdal.Open(str(tif_full_path), gdalconst.GA_ReadOnly)
         for band in range(src_ds.RasterCount):
             band_id = band+1
             band_info = {}
@@ -193,30 +226,18 @@ def extract_geotiff_stat_info(tif_full_path):
                 # ComputeStatistics(0) will scan the file and recalculate real Stat values (Min, Max...)
                 # The Min returnd by ComputeStatistics(0) may be the real NoDataValue or real Min value
 
-                ndv_stored = srcband.GetNoDataValue()
-                if ndv_stored is not None:
-                    min_value_recalculate = (srcband.ComputeStatistics(0))[0]
-                    max_value_recalculate = (srcband.ComputeStatistics(0))[1]
-                    if ndv_stored != min_value_recalculate and (abs(math.floor(math.log10(abs(ndv_stored)))-math.floor(math.log10(abs(min_value_recalculate)))) == 0):
-                        # ndv_stored is not accurate, min_value_recalculate is real no data value
-                        srcband.SetNoDataValue(min_value_recalculate)
-                    elif ndv_stored != max_value_recalculate and (abs(math.floor(math.log10(abs(ndv_stored)))-math.floor(math.log10(abs(max_value_recalculate)))) == 0):
-                        srcband.SetNoDataValue(max_value_recalculate)
-                else:
-                    ndv_stored = -987654321
-                    srcband.SetNoDataValue(ndv_stored)
+               min_max_2nd_min_max_dict = extract_min_max_2nd_min_max(srcband)
+               nvd= min_max_2nd_min_max_dict["no_data_val"]
 
-                ndv = srcband.GetNoDataValue()
-                stats = srcband.ComputeStatistics(0)
-                # stats = srcband.GetStatistics(True, True)
-                if stats is not None:
-                    band_info["band_id"] = band_id
-                    band_info["min_val"] = stats[0]
-                    band_info["max_val"] = stats[1]
-                    band_info["mean"] = stats[2]
-                    band_info["std"] = stats[3]
-                    band_info["no_data_val"] = ndv_stored
-                    band_stat_info_array.append(band_info)
+               band_info["band_id"] = band_id
+               band_info["min_val"] = min_max_2nd_min_max_dict["min_val"]
+               band_info["max_val"] = min_max_2nd_min_max_dict["max_val"]
+               band_info["mean_val"] = min_max_2nd_min_max_dict["mean_val"]
+               band_info["std_val"] = min_max_2nd_min_max_dict["std_val"]
+               band_info["min_2nd_val"] = min_max_2nd_min_max_dict["min_2nd_val"]
+               band_info["max_2nd_val"] = min_max_2nd_min_max_dict["max_2nd_val"]
+               band_info["no_data_val"] = nvd if nvd is not None else -987654321
+               band_stat_info_array.append(band_info)
             print "End get GetRasterBand for band {0}".format(str(band_id))
     except Exception as e:
         print ("extract_geotiff_stat_info Error")

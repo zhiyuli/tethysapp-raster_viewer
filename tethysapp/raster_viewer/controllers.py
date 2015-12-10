@@ -210,6 +210,10 @@ def draw_raster(request):
                     if r_stat.res_id == res_id:
                         band_min_val = r_stat.min_val
                         band_max_val = r_stat.max_val
+                        band_min_2nd_val = r_stat.min_2nd_val
+                        band_max_2nd_val = r_stat.max_2nd_val
+                        band_mean_val = r_stat.mean_val
+                        band_std_val = r_stat.std_val
                         band_id = r_stat.band_id
                         band_name = r_stat.band_name
                         band_no_data_val = r_stat.no_data_val
@@ -217,6 +221,10 @@ def draw_raster(request):
                         band_stat_info={}
                         band_stat_info["min_val"] = band_min_val
                         band_stat_info["max_val"] = band_max_val
+                        band_stat_info["min_2nd_val"] = band_min_2nd_val
+                        band_stat_info["max_2nd_val"] = band_max_2nd_val
+                        band_stat_info["mean_val"] = band_mean_val
+                        band_stat_info["std_val"] = band_std_val
                         band_stat_info["band_id"] = band_id
                         band_stat_info["band_name"] = band_name
                         band_stat_info["no_data_val"] = band_no_data_val
@@ -260,6 +268,10 @@ def draw_raster(request):
                         band_info_db = RasterStatistics(res_id=res_id,
                                                     min_val=band_info["min_val"],
                                                     max_val=band_info["max_val"],
+                                                    mean_val=band_info["mean_val"],
+                                                    std_val=band_info["std_val"],
+                                                    min_2nd_val=band_info["min_2nd_val"],
+                                                    max_2nd_val=band_info["max_2nd_val"],
                                                     band_id=band_info["band_id"],
                                                     band_name=str(band_info["band_id"]),
                                                     hs_branch=hs_instance_name,

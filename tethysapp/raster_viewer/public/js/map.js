@@ -20,6 +20,8 @@ var sld_body_temple = '<?xml version="1.0" encoding="ISO-8859-1"?><StyledLayerDe
 var layer_id;
 var min_val=0;
 var max_val=5000;
+var min_2nd_val=0;
+var max_2nd_val=5000;
 
 slc_lonlat = [-111.8833, 40.75];
 san_fran_lonlat = [-122.4167, 37.7833];
@@ -36,8 +38,23 @@ function refreshmap()
         sld_body = sld_body_temple.replace("_MIN_COLOR_", min_color);
         sld_body = sld_body.replace("_MAX_COLOR_", max_color);
         sld_body = sld_body.replace("_WS_AND_LAYER_NAME_", layer_id);
-        sld_body = sld_body.replace("_MIN_VAL_", min_val);
-        sld_body = sld_body.replace("_MAX_VAL_", max_val);
+        if (min_2nd_val < min_val)
+        {
+            sld_body = sld_body.replace("_MIN_VAL_", min_val);
+        }
+        else
+        {
+            sld_body = sld_body.replace("_MIN_VAL_", min_2nd_val);
+        }
+        if (max_2nd_val < max_val)
+        {
+            sld_body = sld_body.replace("_MAX_VAL_", max_2nd_val);
+        }
+        else
+        {
+            sld_body = sld_body.replace("_MAX_VAL_", max_val);
+        }
+
         console.log(sld_body)
 
 
@@ -173,7 +190,8 @@ $(document).ready(function () {
                     maxx = data["maxx"]
                     maxy = data["maxy"]
                     band_stat_info_array = data["band_stat_info_array"]
-                    draw_raster(geosvr_url_base, ws_name, store_name, layer_name, minx, miny, maxx, maxy, band_stat_info_array)
+                    json_response = data["json_response"]
+                    draw_raster(geosvr_url_base, ws_name, store_name, layer_name, minx, miny, maxx, maxy, band_stat_info_array, json_response)
                     chkbox = create_check_box("raster", "raster", "Raster Resource Layer", true, chkbox_callback)
                     document.getElementById('layer_control_div').appendChild(chkbox);
                     var br = document.createElement('br');
@@ -245,7 +263,7 @@ function chkbox_callback(evt){
 }
 
 
-function draw_raster (geosvr_url_base, ws_name, store_name, layer_name, minx, miny, maxx, maxy, band_stat_info_array)
+function draw_raster (geosvr_url_base, ws_name, store_name, layer_name, minx, miny, maxx, maxy, band_stat_info_array, json_response)
 {
 
     if (band_stat_info_array!=null && band_stat_info_array instanceof Array)
@@ -253,7 +271,7 @@ function draw_raster (geosvr_url_base, ws_name, store_name, layer_name, minx, mi
         if (band_stat_info_array.length != 1)
         {
             $('#color-picker').css('visibility', 'hidden');
-            console.log("multiple bands or 0 brand")
+            console.log("multiple bands or 0 brand", band_stat_info_array.length)
         }
         else
         {
@@ -261,10 +279,29 @@ function draw_raster (geosvr_url_base, ws_name, store_name, layer_name, minx, mi
             band_info = band_stat_info_array[0]
             min_val = band_info["min_val"]
             max_val = band_info["max_val"]
+            mean_val = band_info["mean_val"]
+            std_val = band_info["std_val"]
+            min_2nd_val = band_info["min_2nd_val"]
+            max_2nd_val = band_info["max_2nd_val"]
             no_data_val =  band_info["no_data_val"]
+
             console.log("min_val: ",min_val)
             console.log("max_val: ", max_val)
+            console.log("mean_val: ",mean_val)
+            console.log("std_val: ", std_val)
+            console.log("min_2nd_val: ",min_2nd_val)
+            console.log("max_2nd_val: ", max_2nd_val)
             console.log("no_data_val: ", no_data_val)
+
+            if (json_response != null)
+            {
+                var band_count = json_response["coverage"]["dimensions"]["coverageDimension"].length;
+                if ( band_count> 1)
+                 {
+                     console.log('json_response["coverage"]["dimensions"]["coverageDimension"].length: ', band_count)
+                     $('#color-picker').css('visibility', 'hidden');
+                 }
+            }
         }
     }
     else
