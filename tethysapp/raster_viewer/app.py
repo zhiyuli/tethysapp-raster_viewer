@@ -1,5 +1,5 @@
 from tethys_apps.base import TethysAppBase, url_map_maker
-
+from tethys_sdk.stores import PersistentStore
 
 class HydroShareRasterViewer(TethysAppBase):
     """
@@ -30,3 +30,15 @@ class HydroShareRasterViewer(TethysAppBase):
         )
 
         return url_maps
+
+    def persistent_stores(self):
+        """
+        Add one or more persistent stores
+        """
+        stores = (PersistentStore(name='raster_viewer_db',
+                                  initializer='init_stores:init_raster_viewer_db',
+                                  spatial=False
+                ),
+        )
+
+        return stores

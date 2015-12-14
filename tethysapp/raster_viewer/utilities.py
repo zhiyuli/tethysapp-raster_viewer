@@ -17,6 +17,8 @@ import shutil
 import os
 from django.contrib.sites.shortcuts import get_current_site
 import sys
+from osgeo import gdal, gdalconst
+import math
 
 def get_persistent_store_engine(persistent_store_name):
     """
@@ -150,6 +152,7 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
         j = json.loads(response)
         print j
         if "EPSG:404000" in str(j):
+            print ("The resouce has EPSG:404000 local crs")
             raise
         bounding= j['coverage']['latLonBoundingBox']
         extent=[bounding['minx'], bounding['maxx'], bounding['miny'], bounding['maxy']]
@@ -160,19 +163,97 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
         rslt['miny'] = bounding['miny']
         rslt['maxx'] = bounding['maxx']
         rslt['maxy'] = bounding['maxy']
+        rslt['json_response'] = j
         rslt['success'] = True
         return rslt
 
     except urllib2.HTTPError as e:
+        print e
         print ("The resource is not on Geoserver!")
         return {"success": False}
     except Exception as e:
-        print ("The resouce has EPSG:404000 local crs")
+        print e
         return {"success": False}
 
+def extract_min_max_2nd_min_max(srcband):
+
+    nvd_old = srcband.GetNoDataValue()
+
+    stat_old = srcband.ComputeStatistics(0)
+    min_val = stat_old[0]
+    max_val = stat_old[1]
+    mean_val = stat_old[2]
+    std_val = stat_old[3]
+
+    srcband.SetNoDataValue(min_val)
+    stat_2nd_min = srcband.ComputeStatistics(0)
+    min_2nd_val = stat_2nd_min[0]
+
+    srcband.SetNoDataValue(max_val)
+    stat_2nd_max = srcband.ComputeStatistics(0)
+    max_2nd_val = stat_2nd_max[1]
+
+    if nvd_old is not None:
+        srcband.SetNoDataValue(nvd_old)
+
+    return {
+            "no_data_val": nvd_old,
+            "min_val": min_val,
+            "max_val": max_val,
+            "mean_val":  mean_val,
+            "std_val": std_val,
+            "min_2nd_val": min_2nd_val,
+            "max_2nd_val": max_2nd_val
+            }
 
 
+def extract_geotiff_stat_info(tif_full_path):
+    print ("GDAL read:")
+    print tif_full_path
+    band_stat_info_array = []
+    try:
+        # str(tif_full_path): add str() to tif_full_path to workaround a GDAL 1.7 bug
+        src_ds = gdal.Open(str(tif_full_path), gdalconst.GA_ReadOnly)
+        for band in range(src_ds.RasterCount):
+            band_id = band+1
+            band_info = {}
+            print ("Begin get GetRasterBand for band {0}".format(str(band_id)))
+            srcband = src_ds.GetRasterBand(band_id)
+            if srcband is not None:
+                # handle noDataValue and MinValue
+                # http://gis.stackexchange.com/questions/54150/gdal-does-not-ignore-nodata-value
+                # GetNoDataValue() only return pre-stored NoDataValue
+                # ComputeStatistics(0) will scan the file and recalculate real Stat values (Min, Max...) on the fly
 
+                # Problem: If the NoDataValue is not set correctly and properly, it can cause trouble visualizing it.
+                # As we need to assign color A to the min value and color B to max value. if current min value is actually the nodatavalue but has not been set as,
+                # the color A will be assign to a very small value, all other raster data value are close to max value. So the whole picture will be in color B.
+                # Case 1: no nodatavalue has been set
+                # Case 2: nodatavalue has been set correctly
+                # Case 3: nodatavalue has been set but it is wrong or inaccurate (like https://www.hydroshare.org/resource/101f746de3ca4896a6d0f05206483766/)
+
+                # To aviod the above improper visualization and considering all possible cases of raster files, we extract the min_val, min_2nd_val, max_val, and max_2nd_val of a raster band
+                # and select the larger val between min_val and min_2nd_val to assign color A; the smaller val between max_val and max_2nd_val to assign color B
+                # this may cause some inaccuracy in visualization in some cases, like we may set color A to a real 2nd min value instead of the real min value.
+                # But we believe the loss in visualization is ignorable.
+
+               min_max_2nd_min_max_dict = extract_min_max_2nd_min_max(srcband)
+               nvd= min_max_2nd_min_max_dict["no_data_val"]
+
+               band_info["band_id"] = band_id
+               band_info["min_val"] = min_max_2nd_min_max_dict["min_val"]
+               band_info["max_val"] = min_max_2nd_min_max_dict["max_val"]
+               band_info["mean_val"] = min_max_2nd_min_max_dict["mean_val"]
+               band_info["std_val"] = min_max_2nd_min_max_dict["std_val"]
+               band_info["min_2nd_val"] = min_max_2nd_min_max_dict["min_2nd_val"]
+               band_info["max_2nd_val"] = min_max_2nd_min_max_dict["max_2nd_val"]
+               band_info["no_data_val"] = nvd if nvd is not None else -987654321
+               band_stat_info_array.append(band_info)
+            print "End get GetRasterBand for band {0}".format(str(band_id))
+    except Exception as e:
+        print ("extract_geotiff_stat_info Error")
+        print e
+    return band_stat_info_array
 
 def getGeoSvrUrlBase(request, base_url):
 

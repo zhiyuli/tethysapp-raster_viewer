@@ -18,14 +18,17 @@ import shutil
 import os
 from django.contrib.sites.shortcuts import get_current_site
 from utilities import *
+from .model import engine, SessionMaker, RasterStatistics
 
 ###########
 # geosvr_url_base='http://apps.hydroshare.org:8181'
 # geosvr_url_base='http://appsdev.hydroshare.org:8181'
-geosvr_url_base = 'http://127.0.0.1:8181'
-
-geosvr_user = 'admin'
-geosvr_pw = 'geoserver'
+# geosvr_url_base = 'http://127.0.0.1:8181'
+geosvr_url_base = getattr(settings, "GEOSERVER_URL_BASE", "http://127.0.0.1:8181")
+# geosvr_user = 'admin'
+geosvr_user = getattr(settings, "GEOSERVER_USER_NAME", "admin")
+# geosvr_pw = 'geoserver'
+geosvr_pw = getattr(settings, "GEOSERVER_USER_PASSWORD", "geoserver")
 
 hs_instance_name = "www"
 
@@ -150,6 +153,7 @@ def home(request):
                 popup_content = popup_content_NOT_FOUND
                 success_flag = "false"
             except Exception as e:
+                print "unknown error"
                 print str(e)
                 popup_title = popup_title_ERROR
                 popup_content = popup_content_UNKNOWN_ERROR
@@ -169,8 +173,8 @@ def home(request):
 
 def getOAuthHS(request):
 
-    client_id = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_KEY", "None")
-    client_secret = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_SECRET", "None")
+    client_id = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_KEY", None)
+    client_secret = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_SECRET", None)
 
     # this line will throw out from django.core.exceptions.ObjectDoesNotExist if current user is not signed in via HydroShare OAuth
     token = request.user.social_auth.get(provider='hydroshare').extra_data['token_dict']
@@ -179,8 +183,6 @@ def getOAuthHS(request):
     hs = HydroShare(auth=auth, hostname=hs_hostname)
     return hs
 
-
-
 def draw_raster(request):
 
     res_id = request.session.get("res_id", None)
@@ -188,25 +190,100 @@ def draw_raster(request):
     temp_dir = None
     map_dict = {}
     map_dict["success"] = False
+    band_stat_info_array = []
 
     try:
         if res_id is not None:
-            hs = getOAuthHS(request)
+
             map_dict = getMapParas(geosvr_url_base=geosvr_url_base, wsName=hs_hostname, store_id=res_id, \
                         layerName=res_id, un=geosvr_user, pw=geosvr_pw)
 
-            if map_dict["success"] == False:
+            if map_dict["success"]: # find cached raster
+                session = SessionMaker()
+                # res_1 = RasterStatistics(res_id="res_id_1",
+                #            min_val=1,
+                #            max_val=10)
+                # session.add(res_1)
+                # session.commit()
+                band_stat_info_array = []
+                raster_stat_array = session.query(RasterStatistics).all()
+                for r_stat in raster_stat_array:
+                    if r_stat.res_id == res_id:
+                        band_min_val = r_stat.min_val
+                        band_max_val = r_stat.max_val
+                        band_min_2nd_val = r_stat.min_2nd_val
+                        band_max_2nd_val = r_stat.max_2nd_val
+                        band_mean_val = r_stat.mean_val
+                        band_std_val = r_stat.std_val
+                        band_id = r_stat.band_id
+                        band_name = r_stat.band_name
+                        band_no_data_val = r_stat.no_data_val
 
-                temp_dir = tempfile.mkdtemp()
+                        band_stat_info={}
+                        band_stat_info["min_val"] = band_min_val
+                        band_stat_info["max_val"] = band_max_val
+                        band_stat_info["min_2nd_val"] = band_min_2nd_val
+                        band_stat_info["max_2nd_val"] = band_max_2nd_val
+                        band_stat_info["mean_val"] = band_mean_val
+                        band_stat_info["std_val"] = band_std_val
+                        band_stat_info["band_id"] = band_id
+                        band_stat_info["band_name"] = band_name
+                        band_stat_info["no_data_val"] = band_no_data_val
+                        band_stat_info_array.append(band_stat_info)
+                print("---------------------Load band_stat_info from DB-------------------------------")
+                print band_stat_info_array
+
+            else: # no cached raster or raster has no projection
+
+                session = SessionMaker()
+                raster_stat_array = session.query(RasterStatistics).all()
+                for r_stat in raster_stat_array:
+                    if r_stat.res_id == res_id:
+                        session.delete(r_stat)
+                        print("---------------------Delete leftover band_stat_info from DB-------------------------------")
+                session.commit()
+
+                hs = getOAuthHS(request)
+                print ("Begin download res: {0}".format(res_id))
                 hs.getResource(res_id, destination=extract_base_path, unzip=True)
+                print ("End download res")
                 temp_res_extracted_dir = extract_base_path + '/' + res_id
+                print temp_res_extracted_dir
                 contents_folder = extract_base_path + '/' + res_id + '/' + res_id +'/data/contents/'
+                print contents_folder
                 file_list = os.listdir(contents_folder)
 
                 tif_fn = file_list[0] # tif full name
+                for fn in file_list:
+                    if fn.endswith(".tif"):
+                        tif_fn = fn
+                        break
+
                 tif_fp = contents_folder + tif_fn # tif full path
+                band_stat_info_array = extract_geotiff_stat_info(tif_fp)
+
+                print band_stat_info_array
+                if len(band_stat_info_array) > 0:
+                    session = SessionMaker()
+                    for band_info in band_stat_info_array:
+                        band_info_db = RasterStatistics(res_id=res_id,
+                                                    min_val=band_info["min_val"],
+                                                    max_val=band_info["max_val"],
+                                                    mean_val=band_info["mean_val"],
+                                                    std_val=band_info["std_val"],
+                                                    min_2nd_val=band_info["min_2nd_val"],
+                                                    max_2nd_val=band_info["max_2nd_val"],
+                                                    band_id=band_info["band_id"],
+                                                    band_name=str(band_info["band_id"]),
+                                                    hs_branch=hs_instance_name,
+                                                    no_data_val=band_info["no_data_val"])
+                        session.add(band_info_db)
+                    session.commit()
+                    print("--------------- Save to DB : band_stat_info  ------------")
+
                 tif_hdl = open(tif_fp, 'rb')
                 tif_obj = tif_hdl.read()
+                temp_dir = tempfile.mkdtemp()
                 rslt_dic = zipSaveAs(res_id + ".tif", tif_obj, temp_dir, "zip_file.zip")
 
                 zip_file_full_path = rslt_dic['zip_file_full_path']
@@ -222,6 +299,7 @@ def draw_raster(request):
             map_dict['ws_name'] = hs_hostname
             map_dict['store_name'] = res_id
             map_dict['layer_name'] = res_id
+            map_dict['band_stat_info_array'] = band_stat_info_array
             if map_dict["success"] == False:
                 map_dict['popup_title'] = popup_title_ERROR
                 map_dict['popup_content'] = popup_content_INVALID_GEOTIFF
@@ -263,6 +341,7 @@ def draw_raster(request):
         map_dict['popup_title'] = popup_title
         map_dict['popup_content'] = popup_content
     except Exception as e:
+        print "unknown error"
         print str(e)
         popup_title = popup_title_ERROR
         popup_content = popup_content_UNKNOWN_ERROR
