@@ -44,13 +44,14 @@
 
 {% block app_content %}
 
-<!--<div>-->
-<!--<div id="location" style="float: left; width: 80%"></div>-->
-<!--<div id="scale" style="float: right"></div>-->
-<!--</div>-->
+<div>
+    <div style="float: left; width: 30%">
+    <div id="location" ></div>
+    <div id="scale"></div>
+    </div>
+    <div id="resource_title" style="float: top"><h4>{% if resource_title %}{{resource_title}}{% endif %}</h4></div>
+</div>
 
-<div id="location" ></div>
-<div id="scale"></div>
 <div id="map" class="map"></div>
 
 <div id="success_flag" style="display: none;">

@@ -153,6 +153,7 @@ def home(request):
                 popup_content = popup_content_NOT_FOUND
                 success_flag = "false"
             except Exception as e:
+                print "unknown error"
                 print str(e)
                 popup_title = popup_title_ERROR
                 popup_content = popup_content_UNKNOWN_ERROR
@@ -340,6 +341,7 @@ def draw_raster(request):
         map_dict['popup_title'] = popup_title
         map_dict['popup_content'] = popup_content
     except Exception as e:
+        print "unknown error"
         print str(e)
         popup_title = popup_title_ERROR
         popup_content = popup_content_UNKNOWN_ERROR
