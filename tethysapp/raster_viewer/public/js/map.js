@@ -15,7 +15,7 @@ var hs_layer_tiled;
 var hs_layer_single_tile;
 var sld_body_temple = '<?xml version="1.0" encoding="ISO-8859-1"?><StyledLayerDescriptor version="1.0.0" xsi:schemaLocation="http://www.opengis.net/sld StyledLayerDescriptor.xsd" xmlns="http://www.opengis.net/sld" xmlns:ogc="http://www.opengis.net/ogc" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
       + "<NamedLayer><Name>_WS_AND_LAYER_NAME_</Name><UserStyle><Name>mysld</Name><Title>Two color gradient</Title><FeatureTypeStyle><Rule><RasterSymbolizer><ColorMap>"
-      + '<ColorMapEntry color="#_MIN_COLOR_" quantity="_MIN_VAL_" /><ColorMapEntry color="#_MAX_COLOR_" quantity="_MAX_VAL_" /></ColorMap></RasterSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>'
+      + '<ColorMapEntry color="#FFFFFF" quantity="_NO_DATA_VALUE_" opacity="0"/><ColorMapEntry color="#_MIN_COLOR_" quantity="_MIN_VAL_" /><ColorMapEntry color="#_MAX_COLOR_" quantity="_MAX_VAL_" /></ColorMap></RasterSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>'
 
 var layer_id;
 var min_val=0;
@@ -43,10 +43,12 @@ function refreshmap()
         if (min_2nd_val < min_val)
         {
             sld_body = sld_body.replace("_MIN_VAL_", min_val);
+            sld_body = sld_body.replace("_NO_DATA_VALUE_", min_2nd_val);
         }
         else
         {
             sld_body = sld_body.replace("_MIN_VAL_", min_2nd_val);
+            sld_body = sld_body.replace("_NO_DATA_VALUE_", min_val);
         }
         if (max_2nd_val < max_val)
         {
