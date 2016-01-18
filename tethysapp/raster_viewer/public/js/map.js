@@ -216,6 +216,12 @@ $(document).ready(function () {
     } // if
     else if ($('#success_flag').text().indexOf("welcome") > -1)
     {
+        if (document.referrer == "https://apps.hydroshare.org/apps/") {
+            $('#extra-buttons').append(
+                '<a class="btn btn-default" href="https://apps.hydroshare.org/apps/">Return to HydroShare Apps</a>' +
+                '<a class="btn btn-default" href="https://www.hydroshare.org/search/?q=*&selected_facets=resource_type_exact:RasterResource">Browse HS Raster Resources</a>'
+            );
+        }
         popupDiv_welcome.modal('show');
     }
     else // false

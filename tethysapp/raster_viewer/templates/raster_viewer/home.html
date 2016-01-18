@@ -38,6 +38,10 @@
 
 
 {% block app_navigation_items %}
+    <div id="nav-buttons">
+        <button type="button" class="btn btn-default" data-toggle="modal" data-target="#welcome-popup">
+        <a class="btn btn-default" href="https://github.com/zhiyuli/tethysapp-raster_viewer" target="_blank">More Info</a>
+    </div>
 
     <div id="layer_control_div">
     </div>
@@ -144,6 +148,9 @@
                         <label for="res-id" class="control-label">Raster Resource ID:</label>
                         <input type="text" class="form-control" id="res-id" value="c813e5c26ba24222ba1b73f43943aca6">
                         <input type="button" class="btn btn-default" id="btn-testing-url" value="Go">
+                    </div>
+                    <div id="extra-buttons">
+                        <a class="btn btn-default" href="https://github.com/zhiyuli/tethysapp-raster_viewer" target="_blank">More Info</a>
                     </div>
                 </div>
             </div>
