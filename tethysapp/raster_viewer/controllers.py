@@ -1,14 +1,12 @@
 from django.shortcuts import render
 from django.http import Http404
 import urllib2
-#from tethys_apps.base import TethysAppBase, SpatialDatasetService
 from tethys_dataset_services.engines import GeoServerSpatialDatasetEngine
 import zipfile
 from oauthlib.oauth2 import TokenExpiredError
 from hs_restclient import HydroShare, HydroShareAuthOAuth2, HydroShareNotAuthorized, HydroShareNotFound
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
-from social_auth.models import UserSocialAuth
 from django.conf import settings
 from django.http import JsonResponse
 
