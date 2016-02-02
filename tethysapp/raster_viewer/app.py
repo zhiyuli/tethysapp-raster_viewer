@@ -12,6 +12,7 @@ class HydroShareRasterViewer(TethysAppBase):
     package = 'raster_viewer'
     root_url = 'raster-viewer'
     color = '#e74c3c'
+    description = 'View geographic raster files (geotiff) that are stored in HydroShare.'
         
     def url_maps(self):
         """
