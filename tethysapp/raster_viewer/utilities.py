@@ -1,16 +1,16 @@
-
-from tethys_apps.base.persistent_store import get_persistent_store_engine as gpse
-from tethys_dataset_services.engines import GeoServerSpatialDatasetEngine
+import os
 import zipfile
-
+import logging
 try:
     from cStringIO import StringIO
 except ImportError:
     from io import BytesIO as StringIO
 
-import os
 from osgeo import gdal, gdalconst
-import logging
+
+from tethys_apps.base.persistent_store import get_persistent_store_engine as gpse
+from tethys_dataset_services.engines import GeoServerSpatialDatasetEngine
+
 logger = logging.getLogger(__name__)
 
 def get_persistent_store_engine(persistent_store_name):
@@ -77,39 +77,39 @@ def zipSaveAs(content_fn, content_obj, save_path, zip_fn):
 
 def addZippedTif2Geoserver(geosvr_url_base, uname, upwd, ws_name, store_name, zippedTif_full_path, res_url):
 
-        try:
-            geosvr_url_full = geosvr_url_base+"/geoserver/rest/"
-            logger.debug("GeoServer REST Full URL: "+geosvr_url_full)
-            coverage_file = zippedTif_full_path
+    try:
+        geosvr_url_full = geosvr_url_base+"/geoserver/rest/"
+        logger.debug("GeoServer REST Full URL: "+geosvr_url_full)
+        coverage_file = zippedTif_full_path
 
-            logger.debug("Connect to Geoserver")
-            spatial_dataset_engine = GeoServerSpatialDatasetEngine(endpoint=geosvr_url_full, username=uname, password=upwd)
-            logger.debug("Connected")
+        logger.debug("Connect to Geoserver")
+        spatial_dataset_engine = GeoServerSpatialDatasetEngine(endpoint=geosvr_url_full, username=uname, password=upwd)
+        logger.debug("Connected")
 
-            response = None
-            result = spatial_dataset_engine.create_workspace(workspace_id=ws_name, uri=res_url)
-            if result['success']:
-                logger.debug("Create workspace " + ws_name + " successfully")
-            else:
-                logger.debug("Create workspace " + ws_name + " failed")
-            logger.debug (result)
+        response = None
+        result = spatial_dataset_engine.create_workspace(workspace_id=ws_name, uri=res_url)
+        if result['success']:
+            logger.debug("Create workspace " + ws_name + " successfully")
+        else:
+            logger.debug("Create workspace " + ws_name + " failed")
+        logger.debug (result)
 
-            store_id = ws_name + ":" + store_name
+        store_id = ws_name + ":" + store_name
 
-            result = None
-            result = spatial_dataset_engine.create_coverage_resource(store_id=store_id, coverage_file=coverage_file, coverage_type='geotiff')
-            if result['success']:
-                logger.debug("Create store " + store_name + " successfully")
-            else:
-                logger.debug("Create store " + store_name + " failed")
-                logger.debug(result)
+        result = None
+        result = spatial_dataset_engine.create_coverage_resource(store_id=store_id, coverage_file=coverage_file, coverage_type='geotiff')
+        if result['success']:
+            logger.debug("Create store " + store_name + " successfully")
+        else:
+            logger.debug("Create store " + store_name + " failed")
+            logger.debug(result)
 
-            spatial_dataset_engine.list_layers(debug=True)
+        spatial_dataset_engine.list_layers(debug=True)
 
-            return True
-        except:
-            logger.exception("addZippedTif2Geoserver() error")
-            return False
+        return True
+    except:
+        logger.exception("addZippedTif2Geoserver() error")
+        return False
 
 def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
 

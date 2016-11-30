@@ -1,14 +1,17 @@
-from oauthlib.oauth2 import TokenExpiredError
-from hs_restclient import HydroShareNotAuthorized, HydroShareNotFound
+import logging
+import tempfile, shutil
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import render
-import tempfile, shutil
+
+from oauthlib.oauth2 import TokenExpiredError
+from hs_restclient import HydroShareNotAuthorized, HydroShareNotFound
+
 from utilities import *
 from .model import SessionMaker, RasterStatistics
-import logging
 
 logger = logging.getLogger(__name__)
 try:
@@ -16,7 +19,7 @@ try:
 except ImportError:
     logger.error("could not load: tethys_services.backends.hs_restclient_helper import get_oauth_hs")
 
-geoserver_workspace_name = "geo_feaure_viewer"
+geoserver_workspace_name = "geo_raster_viewer"
 
 ###########
 # geosvr_url_base='http://apps.hydroshare.org:8181'
@@ -281,7 +284,7 @@ def draw_raster(request):
                 zip_crc = rslt_dic['crc']
 
                 rslt = addZippedTif2Geoserver(geosvr_url_base=geosvr_url_base, uname=geosvr_user, upwd=geosvr_pw, ws_name=geoserver_workspace_name, \
-                                              store_name=res_id, zippedTif_full_path=zip_file_full_path, res_url="apps.hydroshare.org/apps/raster-viewer")
+                                              store_name=res_id, zippedTif_full_path=zip_file_full_path, res_url="appsdev.hydroshare.org/apps/raster-viewer")
                 if(rslt):
                     map_dict = getMapParas(geosvr_url_base=geosvr_url_base, wsName=geoserver_workspace_name, store_id=res_id, \
                                                    layerName=res_id, un=geosvr_user, pw=geosvr_pw)
