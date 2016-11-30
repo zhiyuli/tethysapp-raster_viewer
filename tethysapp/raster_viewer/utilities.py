@@ -9,7 +9,6 @@ except ImportError:
     from io import BytesIO as StringIO
 
 import os
-from django.contrib.sites.shortcuts import get_current_site
 from osgeo import gdal, gdalconst
 import logging
 logger = logging.getLogger(__name__)
@@ -245,20 +244,3 @@ def extract_geotiff_stat_info(tif_full_path):
         logger.error ("extract_geotiff_stat_info Error")
         logger.exception(e.message)
     return band_stat_info_array
-
-def getGeoSvrUrlBase(request, base_url):
-    logger.debug("geoserver domain: " + base_url)
-    return base_url
-
-    current_site = get_current_site(request);
-    domain_with_port = current_site.domain
-    logger.debug("original domain: " + domain_with_port)
-    idx_cut = domain_with_port.find(':')
-    if idx_cut != -1:
-        domain_name = domain_with_port[:idx_cut]
-    else:
-        domain_name = domain_with_port
-    logger.debug ("domain: " + domain_name)
-    geosvr_url_base = 'http://' + domain_name + ":8181"
-    logger.debug( "geoserver domain: " + geosvr_url_base)
-    return geosvr_url_base
