@@ -1,24 +1,17 @@
 import os
-from tethys_apps.base.persistent_store import get_persistent_store_engine as gpse
-
-from django.shortcuts import render
-from django.http import Http404
-#from tethys_apps.base import TethysAppBase, SpatialDatasetService
-from tethys_dataset_services.engines import GeoServerSpatialDatasetEngine
 import zipfile
-import urllib2, json, base64
-
+import logging
 try:
     from cStringIO import StringIO
 except ImportError:
     from io import BytesIO as StringIO
-import tempfile
-import shutil
-import os
-from django.contrib.sites.shortcuts import get_current_site
-import sys
+
 from osgeo import gdal, gdalconst
-import math
+
+from tethys_apps.base.persistent_store import get_persistent_store_engine as gpse
+from tethys_dataset_services.engines import GeoServerSpatialDatasetEngine
+
+logger = logging.getLogger(__name__)
 
 def get_persistent_store_engine(persistent_store_name):
     """
@@ -29,9 +22,6 @@ def get_persistent_store_engine(persistent_store_name):
 
     # Get engine
     return gpse(app_name, persistent_store_name)
-
-
-
 
 def zipInMem(content_fn, content_obj):
     try:
@@ -53,21 +43,21 @@ def zipInMem(content_fn, content_obj):
             zfile.create_system = 0
         zip_info = zip_helper.getinfo(zip_content_fn)
         zip_crc = str(zip_info.CRC)
-        print "CRC: " + zip_crc
+        logger.debug("CRC: " + zip_crc)
         zip_helper.close()
 
         return {'zipped_obj': in_memory_zip, 'crc': zip_crc}
 
     except:
-        print ("zippedInMem() error")
+        logger.exception("zippedInMem() error")
         raise Exception("zippedInMem() error")
 
 
 def zipSaveAs(content_fn, content_obj, save_path, zip_fn):
     try:
-        print "tif name: " + content_fn
-        print "save path:  " + save_path
-        print "zip name: " + zip_fn
+        logger.debug ("tif name: " + content_fn)
+        logger.debug ("save path:  " + save_path)
+        logger.debug ("zip name: " + zip_fn)
         rslt_dic = zipInMem(content_fn, content_obj)
         in_memory_zip = rslt_dic['zipped_obj']
 
@@ -78,48 +68,48 @@ def zipSaveAs(content_fn, content_obj, save_path, zip_fn):
         #Writes the mem space 'in_memory_zip' to a file.
         f.write(in_memory_zip.getvalue())
         f.close()
-        print ("zip file saved at : " + zip_file_full_path)
+        logger.debug ("zip file saved at : " + zip_file_full_path)
         return {'zip_file_full_path': zip_file_full_path, 'crc': zip_crc}
 
     except:
-        print ("zipSaveAs() error")
+        logger.exception ("zipSaveAs() error")
         raise Exception("zipSaveAs() error")
 
 def addZippedTif2Geoserver(geosvr_url_base, uname, upwd, ws_name, store_name, zippedTif_full_path, res_url):
 
-        try:
-            geosvr_url_full = geosvr_url_base+"/geoserver/rest/"
-            print "GeoServer REST Full URL: "+geosvr_url_full
-            coverage_file = zippedTif_full_path
+    try:
+        geosvr_url_full = geosvr_url_base+"/geoserver/rest/"
+        logger.debug("GeoServer REST Full URL: "+geosvr_url_full)
+        coverage_file = zippedTif_full_path
 
-            print "Connect to Geoserver"
-            spatial_dataset_engine = GeoServerSpatialDatasetEngine(endpoint=geosvr_url_full, username=uname, password=upwd)
-            print "Connected"
+        logger.debug("Connect to Geoserver")
+        spatial_dataset_engine = GeoServerSpatialDatasetEngine(endpoint=geosvr_url_full, username=uname, password=upwd)
+        logger.debug("Connected")
 
-            response = None
-            result = spatial_dataset_engine.create_workspace(workspace_id=ws_name, uri=res_url)
-            if result['success']:
-                print "Create workspace " + ws_name + " successfully"
-            else:
-                print "Create workspace " + ws_name + " failed"
-            print result
+        response = None
+        result = spatial_dataset_engine.create_workspace(workspace_id=ws_name, uri=res_url)
+        if result['success']:
+            logger.debug("Create workspace " + ws_name + " successfully")
+        else:
+            logger.debug("Create workspace " + ws_name + " failed")
+        logger.debug (result)
 
-            store_id = ws_name + ":" + store_name
+        store_id = ws_name + ":" + store_name
 
-            result = None
-            result = spatial_dataset_engine.create_coverage_resource(store_id=store_id, coverage_file=coverage_file, coverage_type='geotiff')
-            if result['success']:
-                print "Create store " + store_name + " successfully"
-            else:
-                print "Create store " + store_name + " failed"
-            print result
+        result = None
+        result = spatial_dataset_engine.create_coverage_resource(store_id=store_id, coverage_file=coverage_file, coverage_type='geotiff')
+        if result['success']:
+            logger.debug("Create store " + store_name + " successfully")
+        else:
+            logger.debug("Create store " + store_name + " failed")
+            logger.debug(result)
 
-            spatial_dataset_engine.list_layers(debug=True)
+        spatial_dataset_engine.list_layers(debug=True)
 
-            return True
-        except:
-            print ("addZippedTif2Geoserver() error")
-            return False
+        return True
+    except:
+        logger.exception("addZippedTif2Geoserver() error")
+        return False
 
 def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
 
@@ -127,15 +117,15 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
 
     geosvr_ulr_wms = geosvr_url_base + "/geoserver/wms/"
     layer = wsName + ":" + layerName
-    print geosvr_ulr_wms
-    print layer
+    logger.debug(geosvr_ulr_wms)
+    logger.debug(layer)
 
     #manually create a http query to get Rater bounding box
     #not a good practice, consider using tethys geoserver api or gisconfig
     import urllib2, json, base64
     url = '/geoserver/rest/workspaces/{0}/coveragestores/{1}/coverages/{2}.json'
     url = geosvr_url_base + url.format(wsName, store_id, layerName)
-    print "Geo Auth: " + url
+    logger.debug("Geo Auth: " + url)
 
     authKey = base64.encodestring('%s:%s' % (un, pw)).replace('\n', '')
     request = urllib2.Request(url)
@@ -150,14 +140,14 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
             return rslt
 
         j = json.loads(response)
-        print j
+        logger.debug(j)
         if "EPSG:404000" in str(j):
-            print ("The resouce has EPSG:404000 local crs")
+            logger.debug ("The resouce has EPSG:404000 local crs")
             raise
         bounding= j['coverage']['latLonBoundingBox']
         extent=[bounding['minx'], bounding['maxx'], bounding['miny'], bounding['maxy']]
-        print "extent:"
-        print extent
+        logger.debug ("extent:")
+        logger.debug (extent)
 
         rslt['minx'] = bounding['minx']
         rslt['miny'] = bounding['miny']
@@ -168,11 +158,11 @@ def getMapParas(geosvr_url_base, wsName, store_id, layerName, un, pw):
         return rslt
 
     except urllib2.HTTPError as e:
-        print e
-        print ("The resource is not on Geoserver!")
+        logger.debug(e.message)
+        logger.debug ("The resource is not on Geoserver!")
         return {"success": False}
     except Exception as e:
-        print e
+        logger.debug(e.message)
         return {"success": False}
 
 def extract_min_max_2nd_min_max(srcband):
@@ -208,8 +198,8 @@ def extract_min_max_2nd_min_max(srcband):
 
 
 def extract_geotiff_stat_info(tif_full_path):
-    print ("GDAL read:")
-    print tif_full_path
+    logger.debug ("GDAL read:")
+    logger.debug(tif_full_path)
     band_stat_info_array = []
     try:
         # str(tif_full_path): add str() to tif_full_path to workaround a GDAL 1.7 bug
@@ -217,7 +207,7 @@ def extract_geotiff_stat_info(tif_full_path):
         for band in range(src_ds.RasterCount):
             band_id = band+1
             band_info = {}
-            print ("Begin get GetRasterBand for band {0}".format(str(band_id)))
+            logger.debug ("Begin get GetRasterBand for band {0}".format(str(band_id)))
             srcband = src_ds.GetRasterBand(band_id)
             if srcband is not None:
                 # handle noDataValue and MinValue
@@ -249,26 +239,8 @@ def extract_geotiff_stat_info(tif_full_path):
                band_info["max_2nd_val"] = min_max_2nd_min_max_dict["max_2nd_val"]
                band_info["no_data_val"] = nvd if nvd is not None else -987654321
                band_stat_info_array.append(band_info)
-            print "End get GetRasterBand for band {0}".format(str(band_id))
+            logger.debug("End get GetRasterBand for band {0}".format(str(band_id)))
     except Exception as e:
-        print ("extract_geotiff_stat_info Error")
-        print e
+        logger.error ("extract_geotiff_stat_info Error")
+        logger.exception(e.message)
     return band_stat_info_array
-
-def getGeoSvrUrlBase(request, base_url):
-
-    print "geoserver domain: " + base_url
-    return base_url
-
-    current_site = get_current_site(request);
-    domain_with_port = current_site.domain
-    print "original domain: " + domain_with_port
-    idx_cut = domain_with_port.find(':')
-    if idx_cut != -1:
-        domain_name = domain_with_port[:idx_cut]
-    else:
-        domain_name = domain_with_port
-    print "domain: " + domain_name
-    geosvr_url_base = 'http://' + domain_name + ":8181"
-    print "geoserver domain: " + geosvr_url_base
-    return geosvr_url_base

@@ -1,22 +1,25 @@
-from django.shortcuts import render
-from django.http import Http404
-import urllib2
-from tethys_dataset_services.engines import GeoServerSpatialDatasetEngine
-import zipfile
-from oauthlib.oauth2 import TokenExpiredError
-from hs_restclient import HydroShare, HydroShareAuthOAuth2, HydroShareNotAuthorized, HydroShareNotFound
+import logging
+import tempfile, shutil
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.http import JsonResponse
+from django.shortcuts import render
 
+from oauthlib.oauth2 import TokenExpiredError
+from hs_restclient import HydroShareNotAuthorized, HydroShareNotFound
 
-import tempfile
-import shutil
-import os
-from django.contrib.sites.shortcuts import get_current_site
 from utilities import *
-from .model import engine, SessionMaker, RasterStatistics
+from .model import SessionMaker, RasterStatistics
+
+logger = logging.getLogger(__name__)
+try:
+    from tethys_services.backends.hs_restclient_helper import get_oauth_hs
+except ImportError:
+    logger.error("could not load: tethys_services.backends.hs_restclient_helper import get_oauth_hs")
+
+geoserver_workspace_name = "geo_raster_viewer"
 
 ###########
 # geosvr_url_base='http://apps.hydroshare.org:8181'
@@ -28,24 +31,22 @@ geosvr_user = getattr(settings, "GEOSERVER_USER_NAME", "admin")
 # geosvr_pw = 'geoserver'
 geosvr_pw = getattr(settings, "GEOSERVER_USER_PASSWORD", "geoserver")
 
-hs_instance_name = "www"
-
 # tethys_url_base = "https://apps.hydroshare.org"
 # tethys_url_base = "https://appsdev.hydroshare.org"
 # tethys_url_base = "http://127.0.0.1:8000"
 
 ###########
 
-hs_hostname = "{0}.hydroshare.org".format(hs_instance_name)
+hs_hostname = "www.hydroshare.org"
 popup_title_WELCOME = "Welcome to the HydroShare Raster Viewer"
 popup_title_ERROR = "Error"
 popup_title_WARNING = "Warning"
 
-popup_content_NOT_LAUNCHED_FROM_HYDROSHARE = "This app should be launched from <a href='https://{0}.hydroshare.org/my-resources/'>HydroShare</a>.".format(hs_instance_name)
+popup_content_NOT_LAUNCHED_FROM_HYDROSHARE = "This app should be launched from HydroShare."
 popup_content_UNKNOWN_ERROR = "Sorry, we are having an internal error!"
 popup_content_NO_PERMISSION = "Sorry, you have no permission on this resource."
 popup_content_NOT_FOUND = "Sorry, we cannot find this resource on HydroShare."
-popup_content_ANONYMOUS_USER = "Please <a href='https://{0}.hydroshare.org/accounts/login/'>sign in HydroShare</a> and then launch this app again.".format(hs_instance_name)
+popup_content_ANONYMOUS_USER = "Please sign in HydroShare and then launch this app again."
 popup_content_TOKEN_EXPIRED = "Login timed out! Please <a href='/oauth2/login/hydroshare'>sign in with your HydroShare account</a> again."
 popup_content_NOT_OAUTH_LOGIN = "Please sign out and re-sign in with your HydroShare account."
 popup_content_NOT_RASTER_RESOURCE = "Sorry, this resource is not a HydroShare Raster Resource."
@@ -117,8 +118,11 @@ def home(request):
                 # res_id = "a4a4bca8369e4c1e88a1b35b9487e731"
                 # request.session['res_id'] = res_id
 
-                hs = getOAuthHS(request)
-                res_landing_page = "https://{0}.hydroshare.org/resource/{1}/".format(hs_instance_name, res_id)
+                #hs = getOAuthHS(request)
+                hs = get_oauth_hs(request)
+                global hs_hostname
+                hs_hostname = hs.hostname
+
                 resource_md = hs.getSystemMetadata(res_id)
                 resource_type = resource_md.get("resource_type", "")
                 resource_title = resource_md.get("resource_title", "")
@@ -129,30 +133,30 @@ def home(request):
                     success_flag = "false"
                     #raise Http404("Not RasterResource")
             except ObjectDoesNotExist as e:
-                print str(e)
+                logger.exception(e)
                 popup_title = popup_title_ERROR
                 popup_content = popup_content_NOT_OAUTH_LOGIN
                 success_flag = "false"
             except TokenExpiredError as e:
-                print str(e)
+                logger.exception(e)
                 popup_title = popup_title_WARNING
                 popup_content = popup_content_TOKEN_EXPIRED
                 success_flag = "false"
                 # raise Http404("Token Expired")
             except HydroShareNotAuthorized as e:
-                print str(e)
+                logger.exception(e)
                 popup_title = popup_title_ERROR
                 popup_content = popup_content_NO_PERMISSION
                 success_flag = "false"
                 # raise Http404("Your have no permission on this resource")
             except HydroShareNotFound as e:
-                print str(e)
+                logger.exception(e)
                 popup_title = popup_title_ERROR
                 popup_content = popup_content_NOT_FOUND
                 success_flag = "false"
             except Exception as e:
-                print "unknown error"
-                print str(e)
+                logger.error("unknown error")
+                logger.exception(e)
                 popup_title = popup_title_ERROR
                 popup_content = popup_content_UNKNOWN_ERROR
                 success_flag = "false"
@@ -169,18 +173,6 @@ def home(request):
     return render(request, 'raster_viewer/home.html', context)
 
 
-def getOAuthHS(request):
-
-    client_id = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_KEY", None)
-    client_secret = getattr(settings, "SOCIAL_AUTH_HYDROSHARE_SECRET", None)
-
-    # this line will throw out from django.core.exceptions.ObjectDoesNotExist if current user is not signed in via HydroShare OAuth
-    token = request.user.social_auth.get(provider='hydroshare').extra_data['token_dict']
-
-    auth = HydroShareAuthOAuth2(client_id, client_secret, token=token)
-    hs = HydroShare(auth=auth, hostname=hs_hostname)
-    return hs
-
 def draw_raster(request):
 
     res_id = request.session.get("res_id", None)
@@ -193,7 +185,7 @@ def draw_raster(request):
     try:
         if res_id is not None:
 
-            map_dict = getMapParas(geosvr_url_base=geosvr_url_base, wsName=hs_hostname, store_id=res_id, \
+            map_dict = getMapParas(geosvr_url_base=geosvr_url_base, wsName=geoserver_workspace_name, store_id=res_id, \
                         layerName=res_id, un=geosvr_user, pw=geosvr_pw)
 
             if map_dict["success"]: # find cached raster
@@ -228,8 +220,8 @@ def draw_raster(request):
                         band_stat_info["band_name"] = band_name
                         band_stat_info["no_data_val"] = band_no_data_val
                         band_stat_info_array.append(band_stat_info)
-                print("---------------------Load band_stat_info from DB-------------------------------")
-                print band_stat_info_array
+                logger.debug("---------------------Load band_stat_info from DB-------------------------------")
+                logger.debug(band_stat_info_array)
 
             else: # no cached raster or raster has no projection
 
@@ -238,17 +230,21 @@ def draw_raster(request):
                 for r_stat in raster_stat_array:
                     if r_stat.res_id == res_id:
                         session.delete(r_stat)
-                        print("---------------------Delete leftover band_stat_info from DB-------------------------------")
+                        logger.debug("---------------------Delete leftover band_stat_info from DB-------------------------------")
                 session.commit()
 
-                hs = getOAuthHS(request)
-                print ("Begin download res: {0}".format(res_id))
+                #hs = getOAuthHS(request)
+                hs = get_oauth_hs(request)
+                global hs_hostname
+                hs_hostname = hs.hostname
+
+                logger.debug ("Begin download res: {0}".format(res_id))
                 hs.getResource(res_id, destination=extract_base_path, unzip=True)
-                print ("End download res")
+                logger.debug ("End download res")
                 temp_res_extracted_dir = extract_base_path + '/' + res_id
-                print temp_res_extracted_dir
+                logger.debug (temp_res_extracted_dir)
                 contents_folder = extract_base_path + '/' + res_id + '/' + res_id +'/data/contents/'
-                print contents_folder
+                logger.debug (contents_folder)
                 file_list = os.listdir(contents_folder)
 
                 tif_fn = file_list[0] # tif full name
@@ -260,7 +256,7 @@ def draw_raster(request):
                 tif_fp = contents_folder + tif_fn # tif full path
                 band_stat_info_array = extract_geotiff_stat_info(tif_fp)
 
-                print band_stat_info_array
+                logger.debug(band_stat_info_array)
                 if len(band_stat_info_array) > 0:
                     session = SessionMaker()
                     for band_info in band_stat_info_array:
@@ -273,11 +269,11 @@ def draw_raster(request):
                                                     max_2nd_val=band_info["max_2nd_val"],
                                                     band_id=band_info["band_id"],
                                                     band_name=str(band_info["band_id"]),
-                                                    hs_branch=hs_instance_name,
+                                                    hs_branch=hs_hostname,
                                                     no_data_val=band_info["no_data_val"])
                         session.add(band_info_db)
                     session.commit()
-                    print("--------------- Save to DB : band_stat_info  ------------")
+                    logger.debug("--------------- Save to DB : band_stat_info  ------------")
 
                 tif_hdl = open(tif_fp, 'rb')
                 tif_obj = tif_hdl.read()
@@ -287,14 +283,14 @@ def draw_raster(request):
                 zip_file_full_path = rslt_dic['zip_file_full_path']
                 zip_crc = rslt_dic['crc']
 
-                rslt = addZippedTif2Geoserver(geosvr_url_base=geosvr_url_base, uname=geosvr_user, upwd=geosvr_pw, ws_name=hs_hostname, \
-                                              store_name=res_id, zippedTif_full_path=zip_file_full_path, res_url=hs_hostname)
+                rslt = addZippedTif2Geoserver(geosvr_url_base=geosvr_url_base, uname=geosvr_user, upwd=geosvr_pw, ws_name=geoserver_workspace_name, \
+                                              store_name=res_id, zippedTif_full_path=zip_file_full_path, res_url="appsdev.hydroshare.org/apps/raster-viewer")
                 if(rslt):
-                    map_dict = getMapParas(geosvr_url_base=geosvr_url_base, wsName=hs_hostname, store_id=res_id, \
+                    map_dict = getMapParas(geosvr_url_base=geosvr_url_base, wsName=geoserver_workspace_name, store_id=res_id, \
                                                    layerName=res_id, un=geosvr_user, pw=geosvr_pw)
 
             map_dict['geosvr_url_base'] = geosvr_url_base
-            map_dict['ws_name'] = hs_hostname
+            map_dict['ws_name'] = geoserver_workspace_name
             map_dict['store_name'] = res_id
             map_dict['layer_name'] = res_id
             map_dict['band_stat_info_array'] = band_stat_info_array
@@ -309,14 +305,14 @@ def draw_raster(request):
 
 
     except ObjectDoesNotExist as e:
-        print str(e)
+        logger.exception(e)
         popup_title = popup_title_ERROR
         popup_content = popup_content_NOT_OAUTH_LOGIN
         map_dict["success"] = False
         map_dict['popup_title'] = popup_title
         map_dict['popup_content'] = popup_content
     except TokenExpiredError as e:
-        print str(e)
+        logger.exception(e)
         popup_title = popup_title_WARNING
         popup_content = popup_content_TOKEN_EXPIRED
         map_dict["success"] = False
@@ -324,7 +320,7 @@ def draw_raster(request):
         map_dict['popup_content'] = popup_content
         # raise Http404("Token Expired")
     except HydroShareNotAuthorized as e:
-        print str(e)
+        logger.exception(e)
         popup_title = popup_title_ERROR
         popup_content = popup_content_NO_PERMISSION
         map_dict["success"] = False
@@ -332,15 +328,15 @@ def draw_raster(request):
         map_dict['popup_content'] = popup_content
         # raise Http404("Your have no permission on this resource")
     except HydroShareNotFound as e:
-        print str(e)
+        logger.exception(e)
         popup_title = popup_title_ERROR
         popup_content = popup_content_NOT_FOUND
         map_dict["success"] = False
         map_dict['popup_title'] = popup_title
         map_dict['popup_content'] = popup_content
     except Exception as e:
-        print "unknown error"
-        print str(e)
+        logger.error("unknown error")
+        logger.exception(e)
         popup_title = popup_title_ERROR
         popup_content = popup_content_UNKNOWN_ERROR
         map_dict["success"] = False
@@ -351,9 +347,9 @@ def draw_raster(request):
         if temp_dir is not None:
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
-                print temp_dir + " deleted"
+                logger.debug(temp_dir + " deleted")
         if temp_res_extracted_dir is not None:
             if os.path.exists(temp_res_extracted_dir):
                 shutil.rmtree(temp_res_extracted_dir)
-                print temp_res_extracted_dir + " deleted"
+                logger.debug(temp_res_extracted_dir + " deleted")
         return JsonResponse(map_dict)
